@@ -1,33 +1,101 @@
-import React, { useState, useEffect } from 'react';
-import { db } from './firebase'; // Import Firestore
-import { collection, addDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback } from 'react';
+import { db } from './firebase';
+import { collection, addDoc, deleteDoc, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import './App.css';
+import ExpenseCharts from './ExpenseCharts';
+import './index.css';
 
 function App() {
-  // State to manage the list of expenses
   const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showExpenses, setShowExpenses] = useState(false);
-
-  // State to manage input for new expense
   const [newAmount, setNewAmount] = useState('');
   const [newDescription, setNewDescription] = useState('');
-
-  // State for filtering expenses
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [filterDate, setFilterDate] = useState(null);
   const [filterText, setFilterText] = useState('');
   const [filterMinAmount, setFilterMinAmount] = useState('');
   const [filterMaxAmount, setFilterMaxAmount] = useState('');
+  const [category, setCategory] = useState('');
 
-  // Collection reference for Firestore
-  const expensesCollectionRef = collection(db, 'expenses');
+  const categories = [
+    'Food & Dining',
+    'Transportation',
+    'Shopping',
+    'Bills & Utilities',
+    'Entertainment',
+    'Healthcare',
+    'Other'
+  ];
 
-  // Fetch expenses from Firestore
-  const fetchExpenses = async () => {
-    const data = await getDocs(expensesCollectionRef);
-    setExpenses(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+  // Helper function to format date consistently
+  const formatDate = (date) => {
+    if (!date) return null;
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    return localDate.toISOString().split('T')[0];
   };
 
-  // Handle form submission for adding a new expense
+  const fetchExpenses = useCallback(async (date = null) => {
+    let expensesData = [];
+
+    if (date) {
+      const formattedDate = formatDate(date);
+      const dateDocRef = doc(db, 'expenses', formattedDate);
+      const detailsCollectionRef = collection(dateDocRef, 'details');
+      
+      console.log("Fetching expenses for date:", formattedDate);
+      const data = await getDocs(detailsCollectionRef);
+
+      if (data.empty) {
+        console.log("No expenses found for this date.");
+      } else {
+        expensesData = data.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          date: formattedDate // Add date to each expense
+        }));
+        console.log("Fetched expenses:", expensesData);
+      }
+    } else {
+      const expensesSnapshot = await getDocs(collection(db, 'expenses'));
+
+      for (const dateDoc of expensesSnapshot.docs) {
+        const detailsCollectionRef = collection(dateDoc.ref, 'details');
+        const detailsSnapshot = await getDocs(detailsCollectionRef);
+        const expensesForDate = detailsSnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          date: dateDoc.id // Add date from the parent document
+        }));
+        expensesData = expensesData.concat(expensesForDate);
+      }
+    }
+
+    // Apply filters
+    if (filterText) {
+      expensesData = expensesData.filter((expense) =>
+        expense.description.toLowerCase().includes(filterText.toLowerCase())
+      );
+    }
+
+    if (filterMinAmount) {
+      expensesData = expensesData.filter(
+        (expense) => expense.amount >= parseFloat(filterMinAmount)
+      );
+    }
+
+    if (filterMaxAmount) {
+      expensesData = expensesData.filter(
+        (expense) => expense.amount <= parseFloat(filterMaxAmount)
+      );
+    }
+
+    setExpenses(expensesData);
+  }, [filterText, filterMinAmount, filterMaxAmount]);
+
   const handleAddExpense = async () => {
     if (!newAmount || isNaN(newAmount)) {
       alert('Please enter a valid number for the amount.');
@@ -37,64 +105,74 @@ function App() {
       alert('Please enter a description for the expense.');
       return;
     }
+    if (!category) {
+      alert('Please select a category for the expense.');
+      return;
+    }
+    // Format the date consistently
+    const dateString = formatDate(selectedDate);
 
     const newExpense = {
       amount: parseFloat(newAmount),
       description: newDescription,
+      category: category,
+      created: new Date().toISOString()
     };
 
+    const dateDocRef = doc(db, 'expenses', dateString);
+    const dateDocSnapshot = await getDoc(dateDocRef);
+
+    if (!dateDocSnapshot.exists()) {
+      await setDoc(dateDocRef, {
+        created: new Date().toISOString()
+      });
+    }
+
+    const expensesCollectionRef = collection(dateDocRef, 'details');
     await addDoc(expensesCollectionRef, newExpense);
+
     setNewAmount('');
     setNewDescription('');
     setShowForm(false);
-    fetchExpenses(); // Refresh the expense list after adding
+    fetchExpenses(selectedDate);
   };
 
-  // Function to delete an expense by ID
   const handleDeleteExpense = async (id) => {
-    const expenseDoc = doc(db, 'expenses', id);
-    await deleteDoc(expenseDoc);
-    fetchExpenses(); // Refresh the expense list after deletion
+    // You'll need to modify this to handle the nested structure
+    // First, get the expense to find its date
+    const expenseToDelete = expenses.find(exp => exp.id === id);
+    if (!expenseToDelete || !expenseToDelete.date) {
+      console.error('Cannot find expense or date information');
+      return;
+    }
+
+    const dateDocRef = doc(db, 'expenses', expenseToDelete.date);
+    const expenseDocRef = doc(collection(dateDocRef, 'details'), id);
+    await deleteDoc(expenseDocRef);
+    fetchExpenses(filterDate);
   };
 
-  // Function to toggle the form for adding a new expense
+  // Rest of your component remains the same...
   const toggleForm = () => {
     setShowForm(!showForm);
     setShowExpenses(false);
   };
 
-  // Function to toggle the view for all expenses
   const toggleViewExpenses = () => {
     setShowExpenses(!showExpenses);
     setShowForm(false);
-    if (!showExpenses) fetchExpenses(); // Fetch expenses if showing the list
+    if (!showExpenses) fetchExpenses(filterDate);
   };
 
-  // Calculate the total sum of all expenses
   const calculateTotalExpenses = () => {
     return expenses.reduce((total, expense) => total + expense.amount, 0);
   };
 
-  // Filter expenses based on filterText, filterMinAmount, and filterMaxAmount
-  const filteredExpenses = expenses.filter((expense) => {
-    const matchesDescription = expense.description
-      .toLowerCase()
-      .includes(filterText.toLowerCase());
-
-    const withinMinAmount =
-      !filterMinAmount || expense.amount >= parseFloat(filterMinAmount);
-
-    const withinMaxAmount =
-      !filterMaxAmount || expense.amount <= parseFloat(filterMaxAmount);
-
-    return matchesDescription && withinMinAmount && withinMaxAmount;
-  });
-
   useEffect(() => {
     if (showExpenses) {
-      fetchExpenses(); // Fetch expenses when the component mounts
+      fetchExpenses(filterDate);
     }
-  }, [showExpenses]);
+  }, [showExpenses, filterDate, fetchExpenses]);
 
   return (
     <div className="App">
@@ -128,6 +206,26 @@ function App() {
               required
               style={{ marginLeft: '10px' }}
             />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              style={{ marginLeft: '10px' }}
+            >
+              <option value="">Select Category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <DatePicker
+              selected={selectedDate}
+              onChange={(date) => {
+                setSelectedDate(date);
+                fetchExpenses(date);
+              }}
+              dateFormat="yyyy-MM-dd"
+              style={{ marginLeft: '10px' }}
+            />
             <button onClick={handleAddExpense} style={{ marginLeft: '10px' }}>
               Submit
             </button>
@@ -136,9 +234,17 @@ function App() {
 
         {showExpenses && (
           <div style={{ marginTop: '20px' }}>
-            <h3>All Expenses:</h3>
+            <h3>Expense Analysis:</h3>
+            <ExpenseCharts expenses={expenses} />
 
-            {/* Filter Inputs */}
+            <DatePicker
+              selected={filterDate}
+              onChange={(date) => setFilterDate(date)}
+              dateFormat="yyyy-MM-dd"
+              placeholderText="Filter by date"
+              style={{ marginBottom: '10px' }}
+            />
+
             <input
               type="text"
               placeholder="Search by description"
@@ -161,17 +267,15 @@ function App() {
               style={{ marginBottom: '10px', marginLeft: '10px' }}
             />
 
-            {/* Display the total amount */}
             <p style={{ fontWeight: 'bold' }}>
               Total Expenses: ${calculateTotalExpenses().toFixed(2)}
             </p>
 
-            {/* Filtered list of expenses */}
-            {filteredExpenses.length > 0 ? (
+            {expenses.length > 0 ? (
               <ul>
-                {filteredExpenses.map((expense) => (
+                {expenses.map((expense) => (
                   <li key={expense.id}>
-                    ${expense.amount} - {expense.description}
+                    {expense.date} - ${expense.amount} - {expense.description}
                     <button
                       style={{ marginLeft: '10px', color: 'red' }}
                       onClick={() => handleDeleteExpense(expense.id)}
