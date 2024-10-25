@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from './firebase'; // Import Firestore
+import { collection, addDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import './App.css';
 
 function App() {
@@ -16,8 +18,17 @@ function App() {
   const [filterMinAmount, setFilterMinAmount] = useState('');
   const [filterMaxAmount, setFilterMaxAmount] = useState('');
 
+  // Collection reference for Firestore
+  const expensesCollectionRef = collection(db, 'expenses');
+
+  // Fetch expenses from Firestore
+  const fetchExpenses = async () => {
+    const data = await getDocs(expensesCollectionRef);
+    setExpenses(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+  };
+
   // Handle form submission for adding a new expense
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!newAmount || isNaN(newAmount)) {
       alert('Please enter a valid number for the amount.');
       return;
@@ -29,19 +40,21 @@ function App() {
 
     const newExpense = {
       amount: parseFloat(newAmount),
-      description: newDescription
+      description: newDescription,
     };
-    setExpenses([...expenses, newExpense]);
 
+    await addDoc(expensesCollectionRef, newExpense);
     setNewAmount('');
     setNewDescription('');
-    setShowForm(false); 
+    setShowForm(false);
+    fetchExpenses(); // Refresh the expense list after adding
   };
 
-  // Function to delete an expense by index
-  const handleDeleteExpense = (index) => {
-    const updatedExpenses = expenses.filter((_, i) => i !== index);
-    setExpenses(updatedExpenses);
+  // Function to delete an expense by ID
+  const handleDeleteExpense = async (id) => {
+    const expenseDoc = doc(db, 'expenses', id);
+    await deleteDoc(expenseDoc);
+    fetchExpenses(); // Refresh the expense list after deletion
   };
 
   // Function to toggle the form for adding a new expense
@@ -54,6 +67,7 @@ function App() {
   const toggleViewExpenses = () => {
     setShowExpenses(!showExpenses);
     setShowForm(false);
+    if (!showExpenses) fetchExpenses(); // Fetch expenses if showing the list
   };
 
   // Calculate the total sum of all expenses
@@ -75,6 +89,12 @@ function App() {
 
     return matchesDescription && withinMinAmount && withinMaxAmount;
   });
+
+  useEffect(() => {
+    if (showExpenses) {
+      fetchExpenses(); // Fetch expenses when the component mounts
+    }
+  }, [showExpenses]);
 
   return (
     <div className="App">
@@ -149,12 +169,12 @@ function App() {
             {/* Filtered list of expenses */}
             {filteredExpenses.length > 0 ? (
               <ul>
-                {filteredExpenses.map((expense, index) => (
-                  <li key={index}>
+                {filteredExpenses.map((expense) => (
+                  <li key={expense.id}>
                     ${expense.amount} - {expense.description}
                     <button
                       style={{ marginLeft: '10px', color: 'red' }}
-                      onClick={() => handleDeleteExpense(index)}
+                      onClick={() => handleDeleteExpense(expense.id)}
                     >
                       Delete
                     </button>
