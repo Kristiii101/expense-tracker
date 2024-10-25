@@ -1,135 +1,87 @@
-import React, { useMemo } from 'react';
+import React from 'react';
+import { Bar, Pie } from 'react-chartjs-2';
 import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
   Tooltip,
   Legend,
-  ResponsiveContainer
-} from 'recharts';
+  ArcElement,
+} from 'chart.js';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
-const ExpenseCharts = ({ expenses = [] }) => {
-  // Ensure expenses is an array and has items
-  const validExpenses = Array.isArray(expenses) ? expenses : [];
+const ExpenseCharts = ({ expenses }) => {
+  // Group expenses by category
+  const expensesByCategory = expenses.reduce((acc, expense) => {
+    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+    return acc;
+  }, {});
 
-  // Process data for category-based charts
-  const categoryData = useMemo(() => {
-    if (validExpenses.length === 0) return [];
+  // Prepare data for charts
+  const categories = Object.keys(expensesByCategory);
+  const amounts = Object.values(expensesByCategory);
 
-    const categoryMap = validExpenses.reduce((acc, expense) => {
-      const category = expense.category || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + (Number(expense.amount) || 0);
-      return acc;
-    }, {});
+  // Generate random colors for pie chart
+  const colors = categories.map(() => 
+    `hsla(${Math.random() * 360}, 70%, 50%, 0.8)`
+  );
 
-    return Object.entries(categoryMap).map(([category, amount]) => ({
-      category,
-      amount: Number(amount.toFixed(2))
-    }));
-  }, [validExpenses]);
+  const barChartData = {
+    labels: categories,
+    datasets: [
+      {
+        label: 'Expenses by Category',
+        data: amounts,
+        backgroundColor: colors,
+        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderWidth: 1,
+      },
+    ],
+  };
 
-  // Process data for time-based charts
-  const timeData = useMemo(() => {
-    if (validExpenses.length === 0) return [];
+  const pieChartData = {
+    labels: categories,
+    datasets: [
+      {
+        data: amounts,
+        backgroundColor: colors,
+        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderWidth: 1,
+      },
+    ],
+  };
 
-    const timeMap = validExpenses.reduce((acc, expense) => {
-      const date = expense.date?.slice(0, 7) || 'Unknown'; // Get YYYY-MM
-      acc[date] = (acc[date] || 0) + (Number(expense.amount) || 0);
-      return acc;
-    }, {});
-
-    return Object.entries(timeMap)
-      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-      .map(([date, amount]) => ({
-        date,
-        amount: Number(amount.toFixed(2))
-      }));
-  }, [validExpenses]);
-
-  // If no data, show a message
-  if (validExpenses.length === 0) {
-    return (
-      <div className="w-full text-center p-4">
-        <p className="text-gray-500">No expense data available to display charts.</p>
-      </div>
-    );
-  }
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Expense Distribution',
+      },
+    },
+  };
 
   return (
-    <div className="w-full space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Category Distribution (Pie Chart) */}
-        {categoryData.length > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Expenses by Category</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    dataKey="amount"
-                    nameKey="category"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({category, percent}) => 
-                      `${category} ${(percent * 100).toFixed(0)}%`
-                    }
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => `$${value.toFixed(2)}`}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {/* Monthly Trends (Bar Chart) */}
-        {timeData.length > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Monthly Spending Trends</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={timeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date"
-                    tickFormatter={(date) => {
-                      if (!date || date === 'Unknown') return 'Unknown';
-                      const [year, month] = date.split('-');
-                      return `${month}/${year.slice(2)}`;
-                    }}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `$${value}`}
-                  />
-                  <Tooltip 
-                    formatter={(value) => `$${value.toFixed(2)}`}
-                    labelFormatter={(label) => {
-                      if (!label || label === 'Unknown') return 'Unknown';
-                      const [year, month] = label.split('-');
-                      return `${month}/${year}`;
-                    }}
-                  />
-                  <Bar dataKey="amount" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
+    <div className="charts-container">
+      <div className="chart-wrapper">
+        <Bar data={barChartData} options={options} />
+      </div>
+      <div className="chart-wrapper">
+        <Pie data={pieChartData} options={options} />
       </div>
     </div>
   );
