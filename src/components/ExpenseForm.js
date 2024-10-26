@@ -1,6 +1,7 @@
 // Create a new component for the expense form
 import React from 'react';
 import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES }) => {
   return (
@@ -37,7 +38,7 @@ const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES 
           selected={formData.date}
           onChange={(date) => handleFormChange('date', date)}
           dateFormat="yyyy-MM-dd"
-          className="border p-2 rounded w-full"
+          className="react-datepicker-wrapper"
         />
         <button
           onClick={handleAddExpense}

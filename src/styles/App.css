@@ -49,25 +49,10 @@ select {
   width: 150px;
 }
 
-/* Date picker customization */
+/* Date picker styling */
 .react-datepicker-wrapper {
   display: inline-block;
   margin: 5px;
-}
-
-.view-monthly-expense-button {
-  display: block;
-  margin: 20px auto;  /* Adjust margin to move it down and center */
-  background-color: antiquewhite;
-  color: black;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-}
-
-.view-monthly-expense-button:hover {
-  background-color: #ffefc6;  /* Optional hover effect */
 }
 
 .view-monthly-expense-button:hover {
@@ -146,7 +131,7 @@ li button:hover {
 }
 
 .add-recurring-expense-button {
-  background-color: #1a1470;
+  background-color: #147030;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -154,6 +139,10 @@ li button:hover {
   margin: 10px;
   font-size: 16px;
   transition: background-color 0.2s;
+}
+
+.add-recurring-expense-button:hover{
+  background-color: #1a1470;
 }
 
 .recurring-expense-button:hover {

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, deleteDoc, doc, getDocs, Timestamp } from 'firebase/firestore';
 import { CATEGORIES } from '../config/constants';
+import ExpenseCharts from './ExpenseCharts';
+import '../styles/App.css';
 
 const RecurringExpenses = () => {
   const [recurringExpenses, setRecurringExpenses] = useState([]);
@@ -9,10 +11,10 @@ const RecurringExpenses = () => {
     amount: '',
     description: '',
     category: '',
-    frequency: 'monthly'
+    frequency: 'Monthly'
   });
 
-  const frequencies = ['daily', 'weekly', 'monthly', 'yearly'];
+  const frequencies = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
 
   const fetchRecurringExpenses = async () => {
     const recurringExpensesRef = collection(db, 'recurringExpenses');
@@ -57,7 +59,7 @@ const RecurringExpenses = () => {
         amount: '',
         description: '',
         category: '',
-        frequency: 'monthly'
+        frequency: 'Daily'
       });
       fetchRecurringExpenses();
     } catch (error) {
@@ -121,7 +123,7 @@ const RecurringExpenses = () => {
         </select>
         <button
           onClick={handleAddRecurringExpense}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="add-recurring-expense-button"
         >
           Add Recurring Expense
         </button>
@@ -146,6 +148,9 @@ const RecurringExpenses = () => {
           </ul>
         ) : (
           <p>No recurring expenses found.</p>
+        )}
+        {recurringExpenses.length > 0 && (
+          <ExpenseCharts expenses={recurringExpenses} />
         )}
       </div>
     </div>
