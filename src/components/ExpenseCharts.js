@@ -21,6 +21,17 @@ ChartJS.register(
   ArcElement
 );
 
+// Define fixed colors for categories
+const CATEGORY_COLORS = {
+  'Food & Dining': '#FF6384',
+  'Transportation': '#36A2EB',
+  'Shopping': '#FFCE56',
+  'Bills & Utilities': '#4BC0C0',
+  'Entertainment': '#9966FF',
+  'Healthcare': '#FF9F40',
+  'Other': '#C9CBCF'
+};
+
 const ExpenseCharts = ({ expenses }) => {
   // Group expenses by category
   const expensesByCategory = expenses.reduce((acc, expense) => {
@@ -28,14 +39,18 @@ const ExpenseCharts = ({ expenses }) => {
     return acc;
   }, {});
 
-  // Prepare data for charts
-  const categories = Object.keys(expensesByCategory);
-  const amounts = Object.values(expensesByCategory);
+  // Sort categories by amount spent (descending)
+  const sortedCategories = Object.entries(expensesByCategory)
+    .sort(([, a], [, b]) => b - a)
+    .reduce((acc, [category, amount]) => {
+      acc[category] = amount;
+      return acc;
+    }, {});
 
-  // Generate random colors for pie chart
-  const colors = categories.map(() => 
-    `hsla(${Math.random() * 360}, 70%, 50%, 0.8)`
-  );
+  // Prepare data for charts
+  const categories = Object.keys(sortedCategories);
+  const amounts = Object.values(sortedCategories);
+  const colors = categories.map(category => CATEGORY_COLORS[category]);
 
   const barChartData = {
     labels: categories,
@@ -44,7 +59,7 @@ const ExpenseCharts = ({ expenses }) => {
         label: 'Expenses by Category',
         data: amounts,
         backgroundColor: colors,
-        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderColor: colors,
         borderWidth: 1,
       },
     ],
@@ -56,7 +71,7 @@ const ExpenseCharts = ({ expenses }) => {
       {
         data: amounts,
         backgroundColor: colors,
-        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderColor: colors,
         borderWidth: 1,
       },
     ],

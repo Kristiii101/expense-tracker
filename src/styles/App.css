@@ -134,6 +134,42 @@ li button:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.recurring-expense-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  margin: 10px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.add-recurring-expense-button {
+  background-color: #1a1470;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  margin: 10px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.recurring-expense-button:hover {
+  background-color: #1a6928;
+}
+
+.recurring-expenses-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.recurring-expenses-list {
+  margin-top: 20px;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .App-header {
