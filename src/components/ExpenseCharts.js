@@ -83,7 +83,7 @@ const ExpenseCharts = ({ expenses }) => {
     labels: categories,
     datasets: [
       {
-        label: 'Budget Remaining',
+        label: 'Remaining Budget',
         data: categories.map(category => {
           const spent = expensesByCategory[category] || 0;
           const budget = budgetLimits[category] || 0;
@@ -107,18 +107,14 @@ const ExpenseCharts = ({ expenses }) => {
       y: {
         beginAtZero: true
       }
-    }
-  };
-
-  const budgetOptions = {
-    ...options,
-    plugins: {
-      ...options.plugins,
-      title: {
-        display: true,
-        text: 'Remaining Budget by Category',
-      },
     },
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const index = elements[0].index;
+        const selectedCategory = categories[index];
+        window.location.href = `/category/${selectedCategory}`;
+      }
+    }
   };
 
   return (
@@ -127,7 +123,7 @@ const ExpenseCharts = ({ expenses }) => {
         <Bar data={expensesChartData} options={options} />
       </div>
       <div className="chart-wrapper">
-        <Bar data={budgetRemainingData} options={budgetOptions} />
+        <Bar data={budgetRemainingData} options={options} />
       </div>
     </div>
   );

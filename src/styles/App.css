@@ -24,8 +24,38 @@
   transition: background-color 0.2s;
 }
 
-.add-expense-button:hover, .view-expense-button:hover, .view-monthly-expense-button:hover {
+.add-expense-button:hover, .view-expense-button:hover{
   background-color: #1a6928;
+}
+
+.view-monthly-expense-button {
+  display: block;
+  margin: 20px auto;  /* Adjust margin to move it down and center */
+  background-color: antiquewhite;
+  color: black;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.view-monthly-expense-button:hover {
+  background-color: #8a6b1d;  /* Optional hover effect */
+}
+
+.back-button {
+  background-color: #1a771f;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  margin: 10px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #0e6d5d;
 }
 
 /* Form inputs */
@@ -53,21 +83,6 @@ select {
 .react-datepicker-wrapper {
   display: inline-block;
   margin: 5px;
-}
-
-.view-monthly-expense-button {
-  display: block;
-  margin: 20px auto;  /* Adjust margin to move it down and center */
-  background-color: antiquewhite;
-  color: black;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-}
-
-.view-monthly-expense-button:hover {
-  background-color: #8a6b1d;  /* Optional hover effect */
 }
 
 .charts-container {

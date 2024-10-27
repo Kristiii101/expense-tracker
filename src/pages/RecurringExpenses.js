@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, deleteDoc, doc, getDocs, Timestamp } from 'firebase/firestore';
 import { CATEGORIES } from '../config/constants';
-import ExpenseCharts from './ExpenseCharts';
+import ExpenseCharts from '../components/ExpenseCharts';
+import { useNavigate } from 'react-router-dom';
 import '../styles/App.css';
 
 const RecurringExpenses = () => {
+  const navigate = useNavigate();
   const [recurringExpenses, setRecurringExpenses] = useState([]);
   const [formData, setFormData] = useState({
     amount: '',
@@ -86,6 +88,9 @@ const RecurringExpenses = () => {
   return (
     <div className="recurring-expenses-container">
       <h2>Recurring Expenses</h2>
+      <button onClick={() => navigate('/')} className="back-button">
+        Back to Main
+      </button>
       
       <div className="recurring-expense-form">
         <input
