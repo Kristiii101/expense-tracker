@@ -55,6 +55,17 @@ select {
   margin: 5px;
 }
 
+.view-monthly-expense-button {
+  display: block;
+  margin: 20px auto;  /* Adjust margin to move it down and center */
+  background-color: antiquewhite;
+  color: black;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
 .view-monthly-expense-button:hover {
   background-color: #8a6b1d;  /* Optional hover effect */
 }
@@ -158,6 +169,40 @@ li button:hover {
 .recurring-expenses-list {
   margin-top: 20px;
 }
+
+/* Budget limits container */
+
+.budget-limits-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.budget-input-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: var(--border-radius);
+}
+
+.budget-settings-button {
+  background-color: #6b46c1;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  margin: 10px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.budget-settings-button:hover {
+  background-color: #553c9a;
+}
+
 
 /* Responsive design */
 @media (max-width: 768px) {

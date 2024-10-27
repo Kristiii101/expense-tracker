@@ -5,6 +5,7 @@ import ExpenseList from './components/ExpenseList';
 import RecurringExpenses from './components/RecurringExpenses';
 import LoadingSpinner from './components/LoadingSpinner';
 import { CATEGORIES, initialFormState } from './config/constants';
+import BudgetLimits from './components/BudgetLimits';
 import './styles/App.css';
 import './styles/loading.css';
 import './index.css';
@@ -140,33 +141,36 @@ function App() {
 
   return (
     <div className="App">
-    <header className="App-header">
-      <p style={{ textAlign: 'center', color: '#ff5555', fontSize: 30 }}>
-        Welcome to your expenses tracker.
-      </p>
-
-      <div className="button-group">
-        {currentView === 'main' ? (
-          <>
-            <button className="add-expense-button" onClick={toggleForm}>
-              Add a new expense
+      <header className="App-header">
+        <p style={{ textAlign: 'center', color: '#ff5555', fontSize: 30 }}>
+          Welcome to your expenses tracker.
+        </p>
+  
+        <div className="button-group">
+          {currentView === 'main' ? (
+            <>
+              <button className="add-expense-button" onClick={toggleForm}>
+                Add a new expense
+              </button>
+              <button className="view-expense-button" onClick={toggleViewExpenses}>
+                View all expenses
+              </button>
+              <button className="recurring-expense-button" onClick={() => setCurrentView('recurring')}>
+                Recurring Expenses
+              </button>
+              <button className="budget-settings-button" onClick={() => setCurrentView('budgets')}>
+                Budget Settings
+              </button>
+            </>
+          ) : (
+            <button className="view-expense-button" onClick={toggleMainView}>
+              Save changes
             </button>
-            <button className="view-expense-button" onClick={toggleViewExpenses}>
-              View all expenses
-            </button>
-            <button className="recurring-expense-button" onClick={() => setCurrentView('recurring')}>
-              Recurring Expenses
-            </button>
-          </>
-        ) : (
-          <button className="view-expense-button" onClick={toggleMainView}>
-            Back to Main
-          </button>
-        )}
-      </div>
-
+          )}
+        </div>
+  
         {isLoading && <LoadingSpinner />}
-
+  
         {!isLoading && currentView === 'main' && (
           <>
             {showForm && (
@@ -177,7 +181,7 @@ function App() {
                 CATEGORIES={CATEGORIES}
               />
             )}
-
+  
             {showExpenses && (
               <ExpenseList 
                 expenses={expenses}
@@ -190,13 +194,13 @@ function App() {
             )}
           </>
         )}
-
-        {!isLoading && currentView !== 'main' && (
-          <RecurringExpenses />
-        )}
+  
+        {!isLoading && currentView === 'recurring' && <RecurringExpenses />}
+        {!isLoading && currentView === 'budgets' && <BudgetLimits />}
+  
       </header>
     </div>
-  );
+  );  
 }
 
 export default App;

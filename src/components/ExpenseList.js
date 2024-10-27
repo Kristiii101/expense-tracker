@@ -2,15 +2,34 @@
 import React from 'react';
 import DatePicker from 'react-datepicker';
 import ExpenseCharts from './ExpenseCharts';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useEffect } from 'react';
 
-const ExpenseList = ({ 
-  expenses, 
-  filters, 
-  setFilters, 
-  handleDeleteExpense, 
-  fetchCurrentMonthExpenses,
-  calculateTotalExpenses 
-}) => {
+const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetchCurrentMonthExpenses, calculateTotalExpenses }) => {
+  useEffect(() => {
+    checkBudgetLimits(expenses);
+  }, [expenses]);
+
+  const checkBudgetLimits = async (expenses) => {
+    const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
+    const budgetLimits = budgetDoc.data() || {};
+
+    const categoryTotals = expenses.reduce((acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+      return acc;
+    }, {});
+
+    Object.entries(categoryTotals).forEach(([category, total]) => {
+      const limit = budgetLimits[category];
+      if (limit) {
+        const percentage = (total / limit) * 100;
+        if (percentage >= 90) {
+          alert(`Warning: You've used ${percentage.toFixed(1)}% of your ${category} budget!`);
+        }
+      }
+    });
+  };
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
       <h3 className="text-xl font-bold mb-4">Expense Analysis:</h3>

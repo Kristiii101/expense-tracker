@@ -1,5 +1,8 @@
-import React from 'react';
-import { Bar, Pie } from 'react-chartjs-2';
+import React, { useEffect, useState } from 'react';
+import { Bar } from 'react-chartjs-2';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { CATEGORIES, CATEGORY_COLORS } from '../config/constants';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,7 +11,6 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement,
 } from 'chart.js';
 
 ChartJS.register(
@@ -17,27 +19,38 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend,
-  ArcElement
+  Legend
 );
 
-// Define fixed colors for categories
-const CATEGORY_COLORS = {
-  'Food & Dining': '#FF6384',
-  'Transportation': '#36A2EB',
-  'Shopping': '#FFCE56',
-  'Bills & Utilities': '#4BC0C0',
-  'Entertainment': '#9966FF',
-  'Healthcare': '#FF9F40',
-  'Other': '#C9CBCF'
-};
 
 const ExpenseCharts = ({ expenses }) => {
+  const [budgetLimits, setBudgetLimits] = useState({});
+
+  useEffect(() => {
+    const fetchBudgetLimits = async () => {
+      const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
+      if (budgetDoc.exists()) {
+        setBudgetLimits(budgetDoc.data());
+      }
+    };
+    fetchBudgetLimits();
+  }, []);
+
+    // Initialize all categories with 0
+    const expensesByCategory = CATEGORIES.reduce((acc, category) => {
+      acc[category] = 0;
+      return acc;
+    }, {});
+
+    expenses.forEach(expense => {
+      expensesByCategory[expense.category] += expense.amount;
+    });
+
   // Group expenses by category
-  const expensesByCategory = expenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {});
+  // const expensesByCategory = expenses.reduce((acc, expense) => {
+  //   acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+  //   return acc;
+  // }, {});
 
   // Sort categories by amount spent (descending)
   const sortedCategories = Object.entries(expensesByCategory)
@@ -47,30 +60,36 @@ const ExpenseCharts = ({ expenses }) => {
       return acc;
     }, {});
 
-  // Prepare data for charts
   const categories = Object.keys(sortedCategories);
   const amounts = Object.values(sortedCategories);
   const colors = categories.map(category => CATEGORY_COLORS[category]);
 
-  const barChartData = {
+  // Expenses chart data
+  const expensesChartData = {
     labels: categories,
     datasets: [
       {
         label: 'Expenses by Category',
         data: amounts,
-        backgroundColor: colors,
+        backgroundColor: colors.map(color => color + '90'),
         borderColor: colors,
         borderWidth: 1,
       },
     ],
   };
 
-  const pieChartData = {
+  // Budget remaining chart data
+  const budgetRemainingData = {
     labels: categories,
     datasets: [
       {
-        data: amounts,
-        backgroundColor: colors,
+        label: 'Budget Remaining',
+        data: categories.map(category => {
+          const spent = expensesByCategory[category] || 0;
+          const budget = budgetLimits[category] || 0;
+          return Math.max(0, budget - spent);
+        }),
+        backgroundColor: colors.map(color => color + '90'), // Adding transparency
         borderColor: colors,
         borderWidth: 1,
       },
@@ -83,9 +102,21 @@ const ExpenseCharts = ({ expenses }) => {
       legend: {
         position: 'top',
       },
+    },
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  };
+
+  const budgetOptions = {
+    ...options,
+    plugins: {
+      ...options.plugins,
       title: {
         display: true,
-        text: 'Expense Distribution',
+        text: 'Remaining Budget by Category',
       },
     },
   };
@@ -93,10 +124,10 @@ const ExpenseCharts = ({ expenses }) => {
   return (
     <div className="charts-container">
       <div className="chart-wrapper">
-        <Bar data={barChartData} options={options} />
+        <Bar data={expensesChartData} options={options} />
       </div>
       <div className="chart-wrapper">
-        <Pie data={pieChartData} options={options} />
+        <Bar data={budgetRemainingData} options={budgetOptions} />
       </div>
     </div>
   );
