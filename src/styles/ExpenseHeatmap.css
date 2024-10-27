@@ -1,0 +1,59 @@
+.heatmap-container {
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .heatmap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .year-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .year-selector button {
+    padding: 5px 10px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 10px;
+  }
+  
+  .legend-item {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+.react-calendar-heatmap .color-scale-0,
+.legend-item.color-scale-0 { fill: #3ccc1f;; background-color: #3ccc1f; }
+
+.react-calendar-heatmap .color-scale-1,
+.legend-item.color-scale-1 { fill: #f6f86c; background-color: #f6f86c; }
+
+.react-calendar-heatmap .color-scale-2,
+.legend-item.color-scale-2 { fill: #d8bf34; background-color: #d8bf34; }
+
+.react-calendar-heatmap .color-scale-3,
+.legend-item.color-scale-3 { fill: #e6802d; background-color: #e6802d; }
+
+.react-calendar-heatmap .color-scale-4,
+.legend-item.color-scale-4 { fill: #e90e0e; background-color: #e90e0e; }

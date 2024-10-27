@@ -5,6 +5,7 @@ import ExpenseForm from '../components/ExpenseForm';
 import ExpenseList from '../components/ExpenseList';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { CATEGORIES, initialFormState } from '../config/constants';
+import ExpenseHeatmap from '../components/ExpenseHeatmap';
 
 function MainPage() {
   const navigate = useNavigate();
@@ -161,14 +162,17 @@ function MainPage() {
             )}
 
             {showExpenses && (
-              <ExpenseList 
-                expenses={expenses}
-                filters={filters}
-                setFilters={setFilters}
-                handleDeleteExpense={handleDeleteExpense}
-                fetchCurrentMonthExpenses={fetchCurrentMonthExpenses}
-                calculateTotalExpenses={calculateTotalExpenses}
-              />
+              <>
+                <ExpenseList 
+                  expenses={expenses}
+                  filters={filters}
+                  setFilters={setFilters}
+                  handleDeleteExpense={handleDeleteExpense}
+                  fetchCurrentMonthExpenses={fetchCurrentMonthExpenses}
+                  calculateTotalExpenses={calculateTotalExpenses}
+                />
+                <ExpenseHeatmap expenses={expenses} />    
+              </>
             )}
           </>
         )}

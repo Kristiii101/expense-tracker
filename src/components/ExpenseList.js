@@ -1,4 +1,3 @@
-// Create a new component for the expense list
 import React from 'react';
 import DatePicker from 'react-datepicker';
 import ExpenseCharts from './ExpenseCharts';
