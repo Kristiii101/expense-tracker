@@ -1,0 +1,12 @@
+.currency-select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    margin-left: 10px;
+  }
+  
+  .converted-amount {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 5px;
+  }

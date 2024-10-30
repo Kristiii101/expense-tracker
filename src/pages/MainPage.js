@@ -10,7 +10,6 @@ import ExpenseHeatmap from '../components/ExpenseHeatmap';
 function MainPage() {
   const navigate = useNavigate();
   const { fetchExpenses, addExpense, deleteExpense, isLoading } = useFirebaseOperations();
-  
   const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showExpenses, setShowExpenses] = useState(true);
@@ -31,38 +30,6 @@ function MainPage() {
     setFormData(initialFormState);
   };
 
-  // Add new expense
-  const handleAddExpense = async () => {
-    try {
-      // Validation
-      if (!formData.amount || isNaN(formData.amount)) {
-        alert('Please enter a valid number for the amount.');
-        return;
-      }
-      if (!formData.description) {
-        alert('Please enter a description for the expense.');
-        return;
-      }
-      if (!formData.category) {
-        alert('Please select a category for the expense.');
-        return;
-      }
-
-      const success = await addExpense(formData);
-      if (success) {
-        resetForm();
-        setShowForm(false);
-        if (showExpenses) {
-          const updatedExpenses = await fetchExpenses(filters.date, filters);
-          setExpenses(updatedExpenses);
-        }
-      }
-    } catch (error) {
-      console.error('Error adding expense:', error);
-      alert('Failed to add expense. Please try again.');
-    }
-  };
-
   // Delete expense
   const handleDeleteExpense = async (expense) => {
     try {
@@ -74,6 +41,21 @@ function MainPage() {
     } catch (error) {
       console.error('Error deleting expense:', error);
       alert('Failed to delete expense. Please try again.');
+    }
+  };
+
+  const handleAddExpense = async (expenseData) => {
+    try {
+      const success = await addExpense(expenseData);
+      if (success) {
+        const updatedExpenses = await fetchExpenses(filters.date, filters);
+        setExpenses(updatedExpenses);
+        setShowForm(false);
+        setShowExpenses(true);
+      }
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      alert('Failed to add expense. Please try again.');
     }
   };
 
@@ -158,6 +140,7 @@ function MainPage() {
                 handleFormChange={handleFormChange}
                 handleAddExpense={handleAddExpense}
                 CATEGORIES={CATEGORIES}
+                resetForm={resetForm}
               />
             )}
 

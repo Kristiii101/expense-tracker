@@ -1,0 +1,11 @@
+.input-with-currency {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .input-with-currency span {
+    color: #666;
+    font-weight: 500;
+  }
+  

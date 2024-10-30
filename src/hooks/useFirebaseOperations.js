@@ -59,6 +59,9 @@ export const useFirebaseOperations = () => {
       
       const newExpense = {
         amount: parseFloat(formData.amount),
+        originalCurrency: formData.currency || 'USD',
+        convertedAmount: formData.convertedAmount || parseFloat(formData.amount),
+        exchangeRate: formData.exchangeRate || 1,
         description: formData.description,
         category: formData.category,
         created: {
@@ -67,10 +70,10 @@ export const useFirebaseOperations = () => {
         },
         date: dateString
       };
-
+  
       const dateDocRef = doc(db, 'expenses', dateString);
       const dateDocSnapshot = await getDoc(dateDocRef);
-
+  
       if (!dateDocSnapshot.exists()) {
         await setDoc(dateDocRef, {
           created: {
@@ -79,7 +82,7 @@ export const useFirebaseOperations = () => {
           }
         });
       }
-
+  
       const expensesCollectionRef = collection(dateDocRef, 'details');
       await addDoc(expensesCollectionRef, newExpense);
       return true;
