@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFirebaseOperations } from '../hooks/useFirebaseOperations';
+import CategorySidebar from '../components/CategorySidebar';
 import '../styles/CategoryExpenses.css';
 
 const CategoryExpenses = () => {
@@ -31,24 +32,29 @@ const CategoryExpenses = () => {
   }, [category, fetchExpenses]);
 
   return (
-    <div className="category-expenses">
-      <button onClick={() => navigate('/')} className="back-button">
-        Back to Main
-      </button>
-      <h2>Total Expenses for {decodeURIComponent(category)}: ${calculateCategoryTotal().toFixed(2)}</h2>
-      <div className="expense-list">
-        {categoryExpenses.length > 0 ? (
-          categoryExpenses.map(expense => (
-            <div key={expense.id} className="expense-item">
-              <span>{expense.description}</span>
-              <span>${expense.amount.toFixed(2)}</span>
-              <span>{new Date(expense.date).toLocaleDateString()}</span>
-            </div>
-          ))
-        ) : (
-          <p>No expenses found for this category.</p>
-        )}
+    <div className="category-page">
+    <CategorySidebar currentCategory={decodeURIComponent(category)} />
+    <div className="category-content">
+      <div className="category-expenses">
+        <button onClick={() => navigate('/')} className="back-button">
+          Back to Main
+        </button>
+        <h2>Total Expenses for {decodeURIComponent(category)}: ${calculateCategoryTotal().toFixed(2)}</h2>
+        <div className="expense-list">
+          {categoryExpenses.length > 0 ? (
+            categoryExpenses.map(expense => (
+              <div key={expense.id} className="expense-item">
+                <span>{expense.description}</span>
+                <span>${expense.amount.toFixed(2)}</span>
+                <span>{new Date(expense.date).toLocaleDateString()}</span>
+              </div>
+            ))
+          ) : (
+            <p>No expenses found for this category.</p>
+          )}
+        </div>
       </div>
+    </div>
     </div>
   );
 };

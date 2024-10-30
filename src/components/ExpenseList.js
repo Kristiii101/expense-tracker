@@ -65,7 +65,7 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
       </div>
 
       <button className="view-monthly-expense-button" onClick={fetchCurrentMonthExpenses}>
-        View Expenses for Current Month
+        Clear all filters
       </button>
 
       <p className="text-lg font-bold mb-4">
