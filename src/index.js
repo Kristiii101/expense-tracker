@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import './styles/App.css';
+import './styles/BudgetLimits.css';
+import './styles/CategoryExpenses.css';
+import './styles/ChartsStyle.css';
+import './styles/ExpenseForm.css';
+import './styles/ExpenseHeatmap.css';
+import './styles/ExpenseList.css';
+import './styles/ExpenseModal.css';
+import './styles/loading.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

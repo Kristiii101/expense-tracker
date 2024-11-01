@@ -1,0 +1,28 @@
+.expense-list {
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+  }
+  
+  .expense-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .expense-item:last-child {
+    border-bottom: none;
+  }
+
+  li button {
+    background-color: transparent;
+    border: none;
+    font-size: 14px;
+    color: #db2626;
+    padding: 5px 10px;
+  }

@@ -1,47 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { CURRENCIES } from '../config/currencies.js';
+import { CURRENCIES } from '../config/currencies';
 import { useCurrency } from '../context/CurrencyContext';
+import { CurrencyConverter } from '../utils/CurrencyConvertor';
 
 const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES, resetForm }) => {
-  const [exchangeRates, setExchangeRates] = useState({});
+  const [rates, setRates] = useState(null);
   const [originalAmount, setOriginalAmount] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0]);
   const { preferredCurrency } = useCurrency();
 
   useEffect(() => {
-    const fetchExchangeRates = async () => {
-      try {
-        const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${preferredCurrency}`);
-        const data = await response.json();
-        setExchangeRates(data.rates);
-      } catch (error) {
-        console.error('Error fetching exchange rates:', error);
-      }
+    const loadRates = async () => {
+      const newRates = await CurrencyConverter.getExchangeRates(selectedCurrency);
+      setRates(newRates);
     };
-  
-    fetchExchangeRates();
-  }, [preferredCurrency]);
+    loadRates();
+  }, [preferredCurrency, selectedCurrency]);
 
   const handleAmountChange = (value) => {
     setOriginalAmount(value);
-    convertAmount(value, selectedCurrency);
+    if (rates && value) {
+      const convertedAmount = CurrencyConverter.convertCurrency(
+        parseFloat(value),
+        selectedCurrency,
+        preferredCurrency,
+        rates
+      );
+      handleFormChange('amount', parseFloat(convertedAmount));
+    }
   };
 
   const handleCurrencyChange = (currency) => {
     setSelectedCurrency(currency);
-    convertAmount(originalAmount, currency);
+    if (rates && originalAmount) {
+      const convertedAmount = CurrencyConverter.convertCurrency(
+        parseFloat(originalAmount),
+        currency,
+        preferredCurrency,
+        rates
+      );
+      handleFormChange('amount', parseFloat(convertedAmount));
+    }
   };
 
-  const convertAmount = (amount, currency) => {
-    if (!amount || !exchangeRates[currency]) return;
-    const convertedAmount = amount / exchangeRates[currency];
-    handleFormChange('amount', Number(convertedAmount.toFixed(2)));
+  const displayConvertedAmount = () => {
+    if (!rates || !originalAmount) return '0.00';
+    
+    const convertedAmount = CurrencyConverter.convertCurrency(
+      parseFloat(originalAmount),
+      selectedCurrency,
+      preferredCurrency,
+      rates
+    );
+    return convertedAmount.toFixed(2);
   };
 
   const submitExpense = async () => {
-    if (!formData.amount || isNaN(formData.amount)) {
+    if (!originalAmount || isNaN(originalAmount)) {
       alert('Please enter a valid number for the amount.');
       return;
     }
@@ -55,64 +72,42 @@ const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES,
     }
 
     const expenseData = {
-      ...formData,
-      amount: parseFloat(originalAmount),
+      amount: parseFloat(displayConvertedAmount()),
+      originalAmount: parseFloat(originalAmount),
       originalCurrency: selectedCurrency,
-      exchangeRate: exchangeRates[selectedCurrency],
-      description: `${formData.description} (${originalAmount} ${selectedCurrency})`
+      description: formData.description,
+      category: formData.category,
+      date: formData.date,
+      timestamp: new Date().getTime()
     };
 
     await handleAddExpense(expenseData);
     resetForm();
     setOriginalAmount('');
+    setSelectedCurrency(CURRENCIES[0]);
   };
 
   return (
     <div className="expense-form">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto mb-8">
-        <div className="grid grid-cols-1 gap-4">
-          <div className="flex gap-2">
-            <input
-              type="number"
-              value={originalAmount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              placeholder="Amount"
-              className="border p-2 rounded flex-1"
-              required
-            />
-            <select
-              value={selectedCurrency}
-              onChange={(e) => handleCurrencyChange(e.target.value)}
-              className="border p-2 rounded"
-            >
-              {CURRENCIES.map(currency => (
-                <option key={currency} value={currency}>{currency}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="converted-amount text-gray-600">
-            Converted: {typeof formData.amount === 'number' ? formData.amount.toFixed(2) : '0.00'} {preferredCurrency}
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input
-            type="text"
-            placeholder="Enter description"
-            value={formData.description}
-            onChange={(e) => handleFormChange('description', e.target.value)}
-            className="border p-2 rounded"
-            required
+            type="number"
+            placeholder="Amount"
+            value={originalAmount}
+            onChange={(e) => handleAmountChange(e.target.value)}
+            className="border p-2 rounded w-full"
           />
 
-          <select
-            value={formData.category}
-            onChange={(e) => handleFormChange('category', e.target.value)}
-            className="border p-2 rounded"
-            required
+          <select 
+            value={selectedCurrency} 
+            onChange={(e) => handleCurrencyChange(e.target.value)} 
+            className="border p-2 rounded w-full"
           >
-            <option value="">Select Category</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
+            {CURRENCIES.map((currency) => (
+              <option key={currency} value={currency}>
+                {currency}
+              </option>
             ))}
           </select>
 
@@ -122,13 +117,36 @@ const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES,
             dateFormat="yyyy-MM-dd"
             className="border p-2 rounded w-full"
           />
-          <button
-            onClick={submitExpense}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+
+          <input
+            type="text"
+            placeholder="Description"
+            value={formData.description}
+            onChange={(e) => handleFormChange('description', e.target.value)}
+            className="border p-2 rounded w-full"
+          />
+
+          <select 
+            value={formData.category} 
+            onChange={(e) => handleFormChange('category', e.target.value)} 
+            className="border p-2 rounded w-full"
           >
-            Submit
-          </button>
+            <option value="">Select Category</option>
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </div>
+
+        <p className="text-lg font-bold mb-4">
+          Converted Amount: {rates ? `${displayConvertedAmount()} ${preferredCurrency}` : 'Loading...'}
+        </p>
+
+        <button onClick={submitExpense} className="add-view-expense-button">
+          Add Expense
+        </button>
       </div>
     </div>
   );

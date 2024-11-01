@@ -1,81 +1,115 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DatePicker from 'react-datepicker';
 import ExpenseCharts from './ExpenseCharts';
-import { getDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useCurrency } from '../context/CurrencyContext';
+import { CurrencyConverter } from '../utils/CurrencyConvertor';
+import '../styles/ExpenseList.css';
 
 const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetchCurrentMonthExpenses }) => {
+  const [rates, setRates] = useState({});
   const { preferredCurrency } = useCurrency();
-  const [exchangeRates, setExchangeRates] = useState({});
 
-  const convertAmount = useCallback((amount, originalCurrency) => {
-    // Return original amount if currencies match
-    if (originalCurrency === preferredCurrency) {
-      return amount;
+  const displayAmount = useCallback((expense) => {
+    if (!expense || !expense.originalCurrency) {
+      return '0.00';
     }
-    
-    // Convert using stored exchange rate
-    if (exchangeRates[originalCurrency]) {
-      const rate = exchangeRates[preferredCurrency] / exchangeRates[originalCurrency];
-      return (amount * rate).toFixed(2);
+
+    // If currencies match, display original amount
+    if (expense.originalCurrency === preferredCurrency) {
+      return parseFloat(expense.originalAmount).toFixed(2);
     }
-    
-    return amount;
-  }, [exchangeRates, preferredCurrency]);
+
+    // If we have rates, convert the amount
+    if (rates[expense.originalCurrency]) {
+      const convertedAmount = CurrencyConverter.convertCurrency(
+        expense.originalAmount,
+        expense.originalCurrency,
+        preferredCurrency,
+        rates[expense.originalCurrency]
+      );
+      return parseFloat(convertedAmount).toFixed(2);
+    }
+
+    return '0.00';
+  }, [rates, preferredCurrency]);
 
   useEffect(() => {
-    const fetchExchangeRates = async () => {
-      try {
-        const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${preferredCurrency}`);
-        const data = await response.json();
-        setExchangeRates(data.rates);
-      } catch (error) {
-        console.error('Error fetching exchange rates:', error);
-      }
-    };
-
-    fetchExchangeRates();
-  }, [preferredCurrency]);
-
-  useEffect(() => {
-    const checkBudgetLimits = async (expenses) => {
-      const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
-      const budgetData = budgetDoc.data() || {};
-      const budgetLimits = budgetData || {};
-  
-      // Calculate totals in the stored currency
-      const categoryTotals = expenses.reduce((acc, expense) => {
-        // Ensure we're comparing in the same currency
-        const amount = Number(expense.amount);
-        acc[expense.category] = (acc[expense.category] || 0) + amount;
-        return acc;
-      }, {});
-  
-      // Check each category against its limit
-      Object.entries(categoryTotals).forEach(([category, total]) => {
-        const limit = budgetLimits[category];
-        if (limit) {
-          const percentage = (total / limit) * 100;
-          // Alert at 90% or more
-          if (percentage >= 90) {
-            alert(`Warning: You've used ${percentage.toFixed(1)}% of your ${category} budget!\n${total.toFixed(2)} ${preferredCurrency} / ${limit} ${preferredCurrency}`);
-          }
+    const loadRates = async () => {
+      if (!expenses || expenses.length === 0) return;
+      
+      const uniqueCurrencies = [...new Set(expenses
+        .map(exp => exp.originalCurrency)
+        .filter(Boolean))];
+      
+      const ratesMap = {};
+      for (const currency of uniqueCurrencies) {
+        const newRates = await CurrencyConverter.getExchangeRates(currency);
+        if (newRates) {
+          ratesMap[currency] = newRates;
         }
-      });
-    };
-  
-    checkBudgetLimits(expenses);
-  }, [expenses, preferredCurrency]);
-  
-  const calculateTotalExpenses = () => {
-    return expenses.reduce((total, expense) => {
-      if (expense.originalCurrency === preferredCurrency) {
-        return total + expense.amount;
       }
-      return total + parseFloat(convertAmount(expense.amount, expense.originalCurrency));
+      setRates(ratesMap);
+    };
+    loadRates();
+  }, [expenses]);
+
+  const calculateTotalExpenses = useCallback(() => {
+    if (!rates || expenses.length === 0) return '0.00';
+    return expenses.reduce((total, expense) => {
+      const amount = displayAmount(expense);
+      return total + parseFloat(amount);
     }, 0).toFixed(2);
+  }, [expenses, rates, displayAmount]);
+
+  const formatDate = (expenseDate) => {
+    if (expenseDate instanceof Date) {
+      return expenseDate.toLocaleDateString();
+    }
+    
+    // Extract from Firestore timestamp format
+    if (expenseDate?.seconds) {
+      return new Date(expenseDate.seconds * 1000).toLocaleDateString();
+    }
+    
+    return new Date().toLocaleDateString();
   };
+
+  const filterExpenses = (expenses) => {
+    return expenses.filter(expense => {
+      const expenseAmount = parseFloat(displayAmount(expense));
+      
+      // Date filter - using Firestore timestamp
+      if (filters.date) {
+        const expenseDate = new Date(expense.date.seconds * 1000);
+        const filterDate = new Date(filters.date);
+        
+        // Compare year, month, and day
+        const isSameDate = 
+          expenseDate.getFullYear() === filterDate.getFullYear() &&
+          expenseDate.getMonth() === filterDate.getMonth() &&
+          expenseDate.getDate() === filterDate.getDate();
+          
+        if (!isSameDate) return false;
+      }
+  
+      // Text filter
+      if (filters.text && !expense.description.toLowerCase().includes(filters.text.toLowerCase())) {
+        return false;
+      }
+  
+      // Amount filters
+      if (filters.minAmount && expenseAmount < parseFloat(filters.minAmount)) {
+        return false;
+      }
+      if (filters.maxAmount && expenseAmount > parseFloat(filters.maxAmount)) {
+        return false;
+      }
+  
+      return true;
+    });
+  };
+
+  const filteredExpenses = filterExpenses(expenses);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
@@ -112,22 +146,30 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
         />
       </div>
 
-      <button className="view-monthly-expense-button" onClick={fetchCurrentMonthExpenses}>
+      <button 
+        className="view-monthly-expense-button" 
+        onClick={fetchCurrentMonthExpenses}
+      >
         Clear all filters
       </button>
 
       <p className="text-lg font-bold mb-4">
-        Total Expenses: {calculateTotalExpenses()} {preferredCurrency}
+        Total Expenses: {calculateTotalExpenses(filteredExpenses)} {preferredCurrency}
       </p>
 
-      {expenses.length > 0 ? (
-        <ul className="divide-y divide-gray-200">
-          {expenses.map((expense) => (
-            <li key={expense.id} className="py-4 flex justify-between items-center">
+      {filteredExpenses.length >= 0 ? (
+        <ul className="expense-list">
+          {filteredExpenses.map((expense) => (
+            <li key={expense.id} className="expense-item">
               <span>
-                {expense.category} - {convertAmount(expense.amount, expense.originalCurrency)} {preferredCurrency} - {expense.description} - {expense.date}
+                {expense.category} - {displayAmount(expense)} {preferredCurrency} 
+                {expense.originalCurrency !== preferredCurrency && 
+                  ` (${expense.originalAmount} ${expense.originalCurrency})`} 
+                - {expense.description} - {formatDate(expense.date)}
               </span>
-              <button onClick={() => handleDeleteExpense(expense)}>Delete</button>
+              <button className='delete-button' onClick={() => handleDeleteExpense(expense)}>
+                Delete
+              </button>
             </li>
           ))}
         </ul>
@@ -135,7 +177,8 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
         <p className="text-center text-gray-500">No expenses found.</p>
       )}
 
-      <ExpenseCharts expenses={expenses} />
+      <ExpenseCharts expenses={filteredExpenses} />
+
     </div>
   );
 };

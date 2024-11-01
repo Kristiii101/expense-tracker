@@ -1,11 +1,106 @@
-.input-with-currency {
+.budget-limits-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .currency-settings {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .currency-settings h3 {
+    color: #2d3748;
+    margin-bottom: 1rem;
+  }
+  
+  .currency-settings select {
+    width: 200px;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+  }
+  
+  .budget-input-group {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #edf2f7;
+  }
+  
+  .budget-input-group label {
+    font-weight: 600;
+    color: #4a5568;
+  }
+  
+  .input-with-currency {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
+  }
+  
+  .input-with-currency input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
   }
   
   .input-with-currency span {
-    color: #666;
-    font-weight: 500;
+    position: absolute;
+    right: 1rem;
+    color: #718096;
+  }
+  
+  .current-budget {
+    color: #718096;
+    font-size: 0.9rem;
+  }
+  
+  .back-button {
+    margin-bottom: 2rem;
+    padding: 0.5rem 1rem;
+    background: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .back-button:hover {
+    background: #3182ce;
+  }
+  
+  .save-button {
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #48bb78;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .save-button:hover {
+    background: #38a169;
+  }
+  
+  h2 {
+    color: #2d3748;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 1.5rem;
   }
   

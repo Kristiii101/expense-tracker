@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFirebaseOperations } from '../hooks/useFirebaseOperations';
 import CategorySidebar from '../components/CategorySidebar';
+import { useCurrency } from '../context/CurrencyContext';
 import '../styles/CategoryExpenses.css';
 
 const CategoryExpenses = () => {
@@ -9,6 +10,7 @@ const CategoryExpenses = () => {
   const navigate = useNavigate();
   const [categoryExpenses, setCategoryExpenses] = useState([]);
   const { fetchExpenses } = useFirebaseOperations();
+  const { preferredCurrency } = useCurrency();
 
   const calculateCategoryTotal = () => {
     return categoryExpenses.reduce((total, expense) => total + expense.amount, 0);
@@ -33,28 +35,28 @@ const CategoryExpenses = () => {
 
   return (
     <div className="category-page">
-    <CategorySidebar currentCategory={decodeURIComponent(category)} />
-    <div className="category-content">
-      <div className="category-expenses">
-        <button onClick={() => navigate('/')} className="back-button">
-          Back to Main
-        </button>
-        <h2>Total Expenses for {decodeURIComponent(category)}: ${calculateCategoryTotal().toFixed(2)}</h2>
-        <div className="expense-list">
-          {categoryExpenses.length > 0 ? (
-            categoryExpenses.map(expense => (
-              <div key={expense.id} className="expense-item">
-                <span>{expense.description}</span>
-                <span>${expense.amount.toFixed(2)}</span>
-                <span>{new Date(expense.date).toLocaleDateString()}</span>
-              </div>
-            ))
-          ) : (
-            <p>No expenses found for this category.</p>
-          )}
+      <CategorySidebar currentCategory={decodeURIComponent(category)} />
+      <div className="category-content">
+        <div className="category-expenses">
+          <button onClick={() => navigate('/')} className="back-button">
+            Back to Main
+          </button>
+          <h2>Total Expenses for {decodeURIComponent(category)}: {calculateCategoryTotal().toFixed(2)} {preferredCurrency}</h2>
+          <div className="expense-list">
+            {categoryExpenses.length > 0 ? (
+              categoryExpenses.map(expense => (
+                <div key={expense.id} className="expense-item">
+                  <span>{expense.description}</span>
+                  <span>{expense.amount.toFixed(2)} {preferredCurrency}</span>
+                  <span>{new Date(expense.date).toLocaleDateString()}</span>
+                </div>
+              ))
+            ) : (
+              <p>No expenses found for this category.</p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

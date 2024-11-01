@@ -1,41 +1,46 @@
 import { useState, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, deleteDoc, doc, getDocs, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, getDoc, getDocs, setDoc, Timestamp } from 'firebase/firestore';
 import { formatDateForDB } from '../utils/dateUtils';
 
 export const useFirebaseOperations = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchExpenses = useCallback(async (date = null, filters) => {
+  const fetchExpenses = useCallback(async (date = null, filters = {}) => {
     setIsLoading(true);
     try {
       let expensesData = [];
-
+  
       if (date) {
+        // Fetch expenses for a specific date
         const formattedDate = formatDateForDB(date);
         const dateDocRef = doc(db, 'expenses', formattedDate);
         const detailsCollectionRef = collection(dateDocRef, 'details');
+        const querySnapshot = await getDocs(detailsCollectionRef);
         
-        const data = await getDocs(detailsCollectionRef);
-        expensesData = data.docs.map(doc => ({
-          ...doc.data(),
+        expensesData = querySnapshot.docs.map(doc => ({
           id: doc.id,
-          date: formattedDate
+          ...doc.data()
         }));
       } else {
-        const expensesSnapshot = await getDocs(collection(db, 'expenses'));
-        for (const dateDoc of expensesSnapshot.docs) {
+        // Fetch all expenses
+        const expensesCollectionRef = collection(db, 'expenses');
+        const datesSnapshot = await getDocs(expensesCollectionRef);
+        
+        for (const dateDoc of datesSnapshot.docs) {
           const detailsCollectionRef = collection(dateDoc.ref, 'details');
           const detailsSnapshot = await getDocs(detailsCollectionRef);
+          
           const expensesForDate = detailsSnapshot.docs.map(doc => ({
-            ...doc.data(),
             id: doc.id,
-            date: dateDoc.id
+            ...doc.data()
           }));
-          expensesData = expensesData.concat(expensesForDate);
+          
+          expensesData = [...expensesData, ...expensesForDate];
         }
       }
-
+  
+      // Apply filters if any
       return expensesData.filter(expense => {
         const matchesText = !filters.text || 
           expense.description.toLowerCase().includes(filters.text.toLowerCase());
@@ -50,6 +55,7 @@ export const useFirebaseOperations = () => {
       setIsLoading(false);
     }
   }, []);
+  
 
   const addExpense = async (formData) => {
     setIsLoading(true);
@@ -57,39 +63,46 @@ export const useFirebaseOperations = () => {
       const dateString = formatDateForDB(formData.date);
       const now = new Date();
       
+      // Create the expense object with all required fields
       const newExpense = {
         amount: parseFloat(formData.amount),
-        originalCurrency: formData.currency || 'USD',
-        convertedAmount: formData.convertedAmount || parseFloat(formData.amount),
-        exchangeRate: formData.exchangeRate || 1,
-        description: formData.description,
+        originalAmount: parseFloat(formData.originalAmount),
+        originalCurrency: formData.originalCurrency,
         category: formData.category,
+        description: formData.description,
+        date: dateString,
         created: {
           iso: now.toISOString(),
           timestamp: Timestamp.fromDate(now)
-        },
-        date: dateString
+        }
       };
   
+      // Reference to the date document
       const dateDocRef = doc(db, 'expenses', dateString);
-      const dateDocSnapshot = await getDoc(dateDocRef);
+      
+      // Reference to the details collection inside the date document
+      const detailsCollectionRef = collection(dateDocRef, 'details');
+      
+      // First ensure the date document exists
+      await setDoc(dateDocRef, {
+        created: {
+          iso: now.toISOString(),
+          timestamp: Timestamp.fromDate(now)
+        }
+      }, { merge: true });
   
-      if (!dateDocSnapshot.exists()) {
-        await setDoc(dateDocRef, {
-          created: {
-            iso: now.toISOString(),
-            timestamp: Timestamp.fromDate(now)
-          }
-        });
-      }
-  
-      const expensesCollectionRef = collection(dateDocRef, 'details');
-      await addDoc(expensesCollectionRef, newExpense);
-      return true;
+      // Add the expense to the details subcollection
+      const docRef = await addDoc(detailsCollectionRef, newExpense);
+      
+      return {
+        id: docRef.id,
+        ...newExpense
+      };
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   const deleteExpense = async (expense) => {
     setIsLoading(true);
@@ -103,8 +116,33 @@ export const useFirebaseOperations = () => {
     }
   };
 
+  const fetchTotalBudget = async () => {
+    try {
+      const budgetDoc = doc(db, 'budgets', 'limits');
+      const budgetSnapshot = await getDoc(budgetDoc);
+      
+      if (!budgetSnapshot.exists()) {
+        return { totalBudget: 0, currency: 'EUR' };
+      }
+  
+      const budgetData = budgetSnapshot.data();
+      const totalBudget = Object.entries(budgetData)
+        .filter(([key, value]) => key !== 'currency' && typeof value === 'number')
+        .reduce((sum, [_, value]) => sum + value, 0);
+  
+      return { 
+        totalBudget, 
+        currency: budgetData.currency || 'EUR' 
+      };
+    } catch (error) {
+      console.log('Budget fetch error:', error);
+      return { totalBudget: 0, currency: 'EUR' };
+    }
+  };
+
   return {
     fetchExpenses,
+    fetchTotalBudget,
     addExpense,
     deleteExpense,
     isLoading

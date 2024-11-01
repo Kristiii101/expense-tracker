@@ -1,162 +1,158 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useFirebaseOperations } from '../hooks/useFirebaseOperations';
+import { db } from '../firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
 import ExpenseForm from '../components/ExpenseForm';
 import ExpenseList from '../components/ExpenseList';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { CATEGORIES, initialFormState } from '../config/constants';
 import ExpenseHeatmap from '../components/ExpenseHeatmap';
+import { CATEGORIES } from '../config/constants';
+import { useNavigate } from 'react-router-dom';
+import { useCurrency } from '../context/CurrencyContext';
+import '../styles/App.css';
 
 function MainPage() {
-  const navigate = useNavigate();
-  const { fetchExpenses, addExpense, deleteExpense, isLoading } = useFirebaseOperations();
-  const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showExpenses, setShowExpenses] = useState(true);
-  const [formData, setFormData] = useState(initialFormState);
+  const [expenses, setExpenses] = useState([]);
   const [filters, setFilters] = useState({
     date: null,
     text: '',
     minAmount: '',
     maxAmount: ''
   });
+  const navigate = useNavigate();
+  const { preferredCurrency } = useCurrency();
 
-  // Form handlers
-  const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const [formData, setFormData] = useState({
+    amount: '',
+    date: new Date(),
+    description: '',
+    category: '',
+  });
 
   const resetForm = () => {
-    setFormData(initialFormState);
+    setFormData({
+      amount: '',
+      date: new Date(),
+      description: '',
+      category: '',
+    });
   };
 
-  // Delete expense
-  const handleDeleteExpense = async (expense) => {
-    try {
-      const success = await deleteExpense(expense);
-      if (success) {
-        const updatedExpenses = await fetchExpenses(filters.date, filters);
-        setExpenses(updatedExpenses);
-      }
-    } catch (error) {
-      console.error('Error deleting expense:', error);
-      alert('Failed to delete expense. Please try again.');
-    }
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleAddExpense = async (expenseData) => {
     try {
-      const success = await addExpense(expenseData);
-      if (success) {
-        const updatedExpenses = await fetchExpenses(filters.date, filters);
-        setExpenses(updatedExpenses);
-        setShowForm(false);
-        setShowExpenses(true);
-      }
-    } catch (error) {
-      console.error('Error adding expense:', error);
-      alert('Failed to add expense. Please try again.');
-    }
-  };
-
-  // Fetch current month's expenses
-  const fetchCurrentMonthExpenses = async () => {
-    try {
-      const allExpenses = await fetchExpenses(null, {
-        ...filters,
-        date: null,
-        text: '',
-        minAmount: '',
-        maxAmount: ''
+      const docRef = await addDoc(collection(db, 'expenses'), {
+        ...expenseData,
+        timestamp: new Date().getTime()
       });
       
-      setExpenses(allExpenses);
-      setFilters(prev => ({
-        ...prev,
-        date: null,
-        text: '',
-        minAmount: '',
-        maxAmount: ''
-      }));
+      const newExpense = {
+        id: docRef.id,
+        ...expenseData
+      };
       
-      setShowExpenses(true);
+      setExpenses(prev => [newExpense, ...prev]);
       setShowForm(false);
     } catch (error) {
-      console.error('Error fetching monthly expenses:', error);
-      alert('Failed to fetch monthly expenses. Please try again.');
+      console.error('Error adding expense:', error);
     }
   };
 
-  const toggleForm = () => {
-    setShowForm(!showForm);
-    setShowExpenses(false);
-    resetForm();
+  const handleDeleteExpense = async (expense) => {
+    try {
+      await deleteDoc(doc(db, 'expenses', expense.id));
+      setExpenses(prev => prev.filter(e => e.id !== expense.id));
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+    }
   };
 
-  const toggleViewExpenses = () => {
-    setShowExpenses(!showExpenses);
-    setShowForm(false);
-  };
+  const fetchCurrentMonthExpenses = async () => {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-  const calculateTotalExpenses = () => {
-    return expenses.reduce((total, expense) => total + expense.amount, 0);
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    const q = query(
+      collection(db, 'expenses'),
+      where('timestamp', '>=', startOfMonth.getTime()),
+      where('timestamp', '<=', endOfMonth.getTime())
+    );
+
+    const querySnapshot = await getDocs(q);
+    const expensesList = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    setExpenses(expensesList);
+    setFilters({
+      date: null,
+      text: '',
+      minAmount: '',
+      maxAmount: ''
+    });
   };
 
   useEffect(() => {
-    if (showExpenses) {
-      fetchExpenses(filters.date, filters).then(setExpenses);
-    }
-  }, [showExpenses, filters, fetchExpenses]);
+    fetchCurrentMonthExpenses();
+  }, []);
 
   return (
     <div className="App">
       <header className="App-header">
-        <p style={{ textAlign: 'center', color: '#ff5555', fontSize: 30 }}>
-          Welcome to your expenses tracker.
-        </p>
-
-        <div className="button-group">
-          <button className="add-expense-button" onClick={toggleForm}>
-            Add a new expense
-          </button>
-          <button className="view-expense-button" onClick={toggleViewExpenses}>
-            View all expenses
-          </button>
-          <button className="recurring-expense-button" onClick={() => navigate('/recurring')}>
-            Recurring Expenses
-          </button>
-          <button className="budget-settings-button" onClick={() => navigate('/budgets')}>
-            Budget Settings
+        <div className="currency-info">
+          <p>Current Currency: {preferredCurrency}</p>
+          <button 
+            className="change-currency-button"
+            onClick={() => navigate('/budgets')}
+          >
+            Change Currency and Budget Limits
           </button>
         </div>
 
-        {isLoading && <LoadingSpinner />}
+        <div className="button-group">
+          <button className='add-view-expense-button' onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Hide Form' : 'Add New Expense'}
+          </button>
+          <button className='add-view-expense-button' onClick={() => setShowExpenses(!showExpenses)}>
+            {showExpenses ? 'Hide Expenses' : 'Show Expenses'}
+          </button>
+          <button className='add-recurring-expense-button' onClick={() => navigate('/recurring')}>
+            Manage Recurring Expenses
+          </button>
+        </div>
 
-        {!isLoading && (
+        {showForm && (
+          <ExpenseForm 
+            formData={formData}
+            handleFormChange={handleFormChange}
+            handleAddExpense={handleAddExpense}
+            CATEGORIES={CATEGORIES}
+            resetForm={resetForm}
+          />
+        )}
+
+        {showExpenses && (
           <>
-            {showForm && (
-              <ExpenseForm 
-                formData={formData}
-                handleFormChange={handleFormChange}
-                handleAddExpense={handleAddExpense}
-                CATEGORIES={CATEGORIES}
-                resetForm={resetForm}
-              />
-            )}
-
-            {showExpenses && (
-              <>
-                <ExpenseList 
-                  expenses={expenses}
-                  filters={filters}
-                  setFilters={setFilters}
-                  handleDeleteExpense={handleDeleteExpense}
-                  fetchCurrentMonthExpenses={fetchCurrentMonthExpenses}
-                  calculateTotalExpenses={calculateTotalExpenses}
-                />
-                <ExpenseHeatmap expenses={expenses} />    
-              </>
-            )}
+            <ExpenseList 
+              expenses={expenses}
+              filters={filters}
+              setFilters={setFilters}
+              handleDeleteExpense={handleDeleteExpense}
+              fetchCurrentMonthExpenses={fetchCurrentMonthExpenses}
+            />
+            <ExpenseHeatmap expenses={expenses} />
           </>
         )}
       </header>

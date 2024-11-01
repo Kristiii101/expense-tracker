@@ -1,62 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { CATEGORIES } from '../config/constants';
 import { useNavigate } from 'react-router-dom';
-import { CURRENCIES } from '../config/currencies.js';
+import { CURRENCIES } from '../config/currencies';
 import { useCurrency } from '../context/CurrencyContext';
-import '../styles/BudgetLimits.css';
+import { CurrencyConverter } from '../utils/CurrencyConvertor';
 
 const BudgetLimits = () => {
   const [budgets, setBudgets] = useState({});
   const [tempBudgets, setTempBudgets] = useState({});
-  const [exchangeRates, setExchangeRates] = useState({});
   const navigate = useNavigate();
   const { preferredCurrency, updatePreferredCurrency } = useCurrency();
 
-  const convertAmount = useCallback((amount, fromCurrency, toCurrency = preferredCurrency) => {
-    if (!exchangeRates[fromCurrency] || fromCurrency === toCurrency) return amount;
-    
-    // Direct conversion using exchange rates
-    const rate = exchangeRates[toCurrency] / exchangeRates[fromCurrency];
-    return (amount * rate).toFixed(2);
-  }, [exchangeRates, preferredCurrency]);
-
   useEffect(() => {
-    const fetchExchangeRates = async () => {
-      try {
-        const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${preferredCurrency}`);
-        const data = await response.json();
-        setExchangeRates(data.rates);
-      } catch (error) {
-        console.error('Error fetching exchange rates:', error);
-      }
-    };
-  
     const fetchBudgets = async () => {
       const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
       if (budgetDoc.exists()) {
         const budgetData = budgetDoc.data();
-        const storedCurrency = budgetData.currency || preferredCurrency;
+        const rates = await CurrencyConverter.getExchangeRates(preferredCurrency);
+        const convertedBudgets = {};
         
-        if (storedCurrency !== preferredCurrency) {
-          const convertedBudgets = {};
-          Object.keys(budgetData)
-            .filter(key => key !== 'currency')
-            .forEach(category => {
-              convertedBudgets[category] = convertAmount(budgetData[category], storedCurrency);
-            });
-          setBudgets(convertedBudgets);
-        } else {
-          const { currency, ...budgetValues } = budgetData;
-          setBudgets(budgetValues);
-        }
+        Object.entries(budgetData).forEach(([category, amount]) => {
+          if (category !== 'currency') {
+            convertedBudgets[category] = CurrencyConverter.convertCurrency(
+              amount,
+              budgetData.currency || preferredCurrency,
+              preferredCurrency,
+              rates
+            );
+          }
+        });
+        
+        setBudgets(convertedBudgets);
       }
     };
-  
+
     fetchBudgets();
-    fetchExchangeRates();
-  }, [preferredCurrency, convertAmount]);
+  }, [preferredCurrency]);
 
   const handleBudgetChange = (category, value) => {
     setTempBudgets(prev => ({
@@ -67,13 +48,17 @@ const BudgetLimits = () => {
 
   const saveBudgets = async () => {
     const finalBudgets = {};
-    Object.keys(tempBudgets).forEach(category => {
-      finalBudgets[category] = parseFloat(tempBudgets[category]) || 0;
+    Object.entries(tempBudgets).forEach(([category, value]) => {
+      if (value) {
+        finalBudgets[category] = parseFloat(value);
+      }
     });
+
     await setDoc(doc(db, 'budgets', 'limits'), {
       ...finalBudgets,
       currency: preferredCurrency
     });
+
     setBudgets(finalBudgets);
     setTempBudgets({});
   };
@@ -85,39 +70,41 @@ const BudgetLimits = () => {
         <select 
           value={preferredCurrency}
           onChange={(e) => updatePreferredCurrency(e.target.value)}
+          className="currency-select"
         >
           {CURRENCIES.map(currency => (
             <option key={currency} value={currency}>{currency}</option>
           ))}
         </select>
       </div>
+
       <h2>Set Monthly Budget Limits ({preferredCurrency})</h2>
 
       <button onClick={() => navigate('/')} className="back-button">
         Back to Main
       </button>
 
-      {CATEGORIES.map(category => (
-        <div key={category} className="budget-input-group">
-          <label>{category}</label>
-          <div className="input-with-currency">
-            <input
-              type="number"
-              value={tempBudgets[category] || ''}
-              onChange={(e) => handleBudgetChange(category, e.target.value)}
-              placeholder="Set monthly limit"
-            />
-            <span>{preferredCurrency}</span>
+      <div className="budget-inputs">
+        {CATEGORIES.map(category => (
+          <div key={category} className="budget-input-group">
+            <label>{category}</label>
+            <div className="input-with-currency">
+              <input
+                type="number"
+                value={tempBudgets[category] || ''}
+                onChange={(e) => handleBudgetChange(category, e.target.value)}
+                placeholder={`Current: ${budgets[category]?.toFixed(2) || '0.00'}`}
+                className="budget-input"
+              />
+              <span>{preferredCurrency}</span>
+            </div>
           </div>
-          <div className="current-budget">
-            Current limit: {budgets[category] || 0} {preferredCurrency}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       <button 
         onClick={saveBudgets}
-        className="save-button bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
+        className="save-button"
       >
         Save Budget Limits
       </button>
