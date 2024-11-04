@@ -20,7 +20,8 @@ export const useFirebaseOperations = () => {
         
         expensesData = querySnapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
+          date: formattedDate // Add date from parent document
         }));
       } else {
         // Fetch all expenses
@@ -33,7 +34,8 @@ export const useFirebaseOperations = () => {
           
           const expensesForDate = detailsSnapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            date: dateDoc.id // Add date from parent document
           }));
           
           expensesData = [...expensesData, ...expensesForDate];
@@ -55,6 +57,7 @@ export const useFirebaseOperations = () => {
       setIsLoading(false);
     }
   }, []);
+  
   
 
   const addExpense = async (formData) => {
