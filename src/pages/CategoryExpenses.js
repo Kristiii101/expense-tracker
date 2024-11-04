@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import CategorySidebar from '../components/CategorySidebar';
 import { useCurrency } from '../context/CurrencyContext';
 import { CurrencyConverter } from '../utils/CurrencyConvertor';
-import '../styles/CategoryExpenses.css';
+import '../styles/CategoryManager.css';
+
 
 const CategoryExpenses = () => {
   const { category } = useParams();
@@ -13,24 +14,36 @@ const CategoryExpenses = () => {
   const [categoryExpenses, setCategoryExpenses] = useState([]);
   const [rates, setRates] = useState({});
   const { preferredCurrency } = useCurrency();
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     const loadCategoryExpenses = async () => {
-      const expensesCollectionRef = collection(db, 'expenses');
-      const querySnapshot = await getDocs(expensesCollectionRef);
+      const startOfMonth = new Date(selectedDate);
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+    
+      const endOfMonth = new Date(selectedDate);
+      endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+      endOfMonth.setDate(0);
+      endOfMonth.setHours(23, 59, 59, 999);
+    
+      const q = query(collection(db, 'expenses'));
+      const querySnapshot = await getDocs(q);
       
       const allExpenses = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       
-      const filtered = allExpenses.filter(expense => 
-        expense.category === decodeURIComponent(category)
-      );
+      const filtered = allExpenses.filter(expense => {
+        const expenseDate = new Date(expense.date.seconds * 1000);
+        return expense.category === decodeURIComponent(category) &&
+               expenseDate >= startOfMonth &&
+               expenseDate <= endOfMonth;
+      });
       
       setCategoryExpenses(filtered);
-
-      // Load rates for currency conversion
+    
       const uniqueCurrencies = [...new Set(filtered
         .map(exp => exp.originalCurrency)
         .filter(Boolean))];
@@ -45,8 +58,17 @@ const CategoryExpenses = () => {
       setRates(ratesMap);
     };
     
+    
     loadCategoryExpenses();
-  }, [category]);
+  }, [category, selectedDate]);
+  
+
+  const changeMonth = (direction) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(selectedDate.getMonth() + direction);
+    setSelectedDate(newDate);
+  };
+  
 
   const displayAmount = (expense) => {
     if (!expense || !expense.originalCurrency) {
@@ -106,6 +128,23 @@ const CategoryExpenses = () => {
           <button onClick={() => navigate('/')} className="back-button">
             Back to Main
           </button>
+          <div className="month-navigation">
+          <button 
+            onClick={() => changeMonth(-1)} 
+            className="month-nav-button"
+          >
+            Previous Month
+          </button>
+          <span className="current-month">
+            {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </span>
+          <button 
+            onClick={() => changeMonth(1)} 
+            className="month-nav-button"
+          >
+            Next Month
+          </button>
+        </div>
           <h2>Total Expenses for {decodeURIComponent(category)}: {calculateCategoryTotal()} {preferredCurrency}</h2>
           <div className="expense-list">
             {categoryExpenses.length > 0 ? (

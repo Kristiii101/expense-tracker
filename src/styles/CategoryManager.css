@@ -1,0 +1,179 @@
+/* Layout */
+.category-page {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  /* Sidebar */
+  .category-sidebar {
+    width: 250px;
+    background: #f5f5f5;
+    padding: 20px;
+    border-right: 1px solid #ddd;
+  }
+  
+  .category-sidebar h3 {
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  .category-sidebar ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .category-sidebar li {
+    margin: 10px 0;
+  }
+  
+  .category-sidebar a {
+    color: #666;
+    text-decoration: none;
+    padding: 8px;
+    display: block;
+    border-radius: 4px;
+  }
+  
+  .category-sidebar li.active a {
+    background: #ff5555;
+    color: white;
+  }
+  
+  .category-sidebar a:hover {
+    background: #ffeeee;
+  }
+  
+  /* Category Manager */
+  .category-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+  }
+  
+  .category-sidebar li {
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .category-sidebar a {
+    color: #666;
+    text-decoration: none;
+    padding: 8px;
+    flex-grow: 1;
+    border-radius: 4px;
+  }
+  
+  .delete-category-btn {
+    background: none;
+    border: none;
+    color: #ff4444;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 0.5rem;
+    margin-left: 8px;
+  }
+  
+  .delete-category-btn:hover {
+    color: #ff2222;
+  }
+  
+  
+  .add-category-form {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .add-category-form input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .add-category-btn {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 1rem;
+    background: #315aa0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .add-category-btn:hover {
+    background: #2d3748;
+  }
+  
+  /* Category Content */
+  .category-content {
+    flex: 1;
+    padding: 20px;
+  }
+  
+  /* Month Navigation */
+  .month-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .month-nav-button {
+    padding: 0.5rem 1rem;
+    background-color: #4a5568;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+  }
+  
+  .month-nav-button:hover {
+    background-color: #2d3748;
+  }
+  
+  .current-month {
+    font-size: 1.25rem;
+    font-weight: bold;
+    min-width: 200px;
+    text-align: center;
+  }
+  
+  .add-category-form button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  .add-category-form button:first-of-type {
+    background: #315aa0;
+    color: white;
+  }
+  
+  .add-category-form button:last-of-type {
+    background: #ff4444;
+    color: white;
+  }
+  
+  /* Delete button in category list */
+  .category-list .category-item button {
+    background: #ff4444;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .category-list .category-item:hover button {
+    opacity: 1;
+  }

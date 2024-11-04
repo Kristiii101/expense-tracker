@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { CATEGORIES, CATEGORY_COLORS } from '../config/constants';
+import { CATEGORY_COLORS } from '../config/constants';
 import { useCurrency } from '../context/CurrencyContext';
 import { CurrencyConverter } from '../utils/CurrencyConvertor';
 import {
@@ -27,7 +27,51 @@ ChartJS.register(
 const ExpenseCharts = ({ expenses }) => {
   const [budgetLimits, setBudgetLimits] = useState({});
   const [rates, setRates] = useState(null);
+  const [categories, setCategories] = useState([]);
   const { preferredCurrency } = useCurrency();
+
+  const convertAmount = (expense) => {
+    if (!expense.originalCurrency || !rates?.[expense.originalCurrency]) {
+      return expense.amount;
+    }
+
+    return CurrencyConverter.convertCurrency(
+      expense.originalAmount || expense.amount,
+      expense.originalCurrency,
+      preferredCurrency,
+      rates[expense.originalCurrency]
+    );
+  };
+
+  // Add this new effect to fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const categoriesRef = doc(db, 'settings', 'categories');
+      const categoriesDoc = await getDoc(categoriesRef);
+      if (categoriesDoc.exists()) {
+        setCategories(categoriesDoc.data().list);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const loadRates = async () => {
+      const uniqueCurrencies = [...new Set(expenses
+        .map(exp => exp.originalCurrency)
+        .filter(Boolean))];
+      
+      const ratesMap = {};
+      for (const currency of uniqueCurrencies) {
+        const newRates = await CurrencyConverter.getExchangeRates(currency);
+        if (newRates) {
+          ratesMap[currency] = newRates;
+        }
+      }
+      setRates(ratesMap);
+    };
+    loadRates();
+  }, [expenses, preferredCurrency]);
 
   useEffect(() => {
     const fetchBudgetLimits = async () => {
@@ -55,43 +99,17 @@ const ExpenseCharts = ({ expenses }) => {
     fetchBudgetLimits();
   }, [preferredCurrency]);
 
-  useEffect(() => {
-    const loadRates = async () => {
-      const uniqueCurrencies = [...new Set(expenses
-        .map(exp => exp.originalCurrency)
-        .filter(Boolean))];
-      
-      const ratesMap = {};
-      for (const currency of uniqueCurrencies) {
-        const newRates = await CurrencyConverter.getExchangeRates(currency);
-        if (newRates) {
-          ratesMap[currency] = newRates;
-        }
-      }
-      setRates(ratesMap);
-    };
-    loadRates();
-  }, [expenses, preferredCurrency]);
-
-  const convertAmount = (expense) => {
-    if (!expense.originalCurrency || !rates?.[expense.originalCurrency]) {
-      return expense.amount;
-    }
-
-    return CurrencyConverter.convertCurrency(
-      expense.originalAmount || expense.amount,
-      expense.originalCurrency,
-      preferredCurrency,
-      rates[expense.originalCurrency]
-    );
-  };
-
-  const expensesByCategory = CATEGORIES.reduce((acc, category) => {
+  const expensesByCategory = categories.reduce((acc, category) => {
     acc[category] = expenses
       .filter(expense => expense.category === category)
       .reduce((sum, expense) => sum + convertAmount(expense), 0);
     return acc;
   }, {});
+
+  // Update color mapping to handle dynamic categories
+  const getColorForCategory = (category) => {
+    return CATEGORY_COLORS[category] || '#' + Math.floor(Math.random()*16777215).toString(16);
+  };
 
   const sortedCategories = Object.entries(expensesByCategory)
     .sort(([, a], [, b]) => b - a)
@@ -100,9 +118,9 @@ const ExpenseCharts = ({ expenses }) => {
       return acc;
     }, {});
 
-  const categories = Object.keys(sortedCategories);
+  const categoryLabels = Object.keys(sortedCategories);
   const amounts = Object.values(sortedCategories);
-  const colors = categories.map(category => CATEGORY_COLORS[category]);
+  const colors = categoryLabels.map(category => getColorForCategory(category));
 
   const budgetRemainingData = {
     labels: categories,
