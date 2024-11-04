@@ -15,7 +15,7 @@ const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES,
     const loadRates = async () => {
       const newRates = await CurrencyConverter.getExchangeRates(selectedCurrency);
       setRates(newRates);
-    };
+    }
     loadRates();
   }, [preferredCurrency, selectedCurrency]);
 
@@ -114,7 +114,7 @@ const ExpenseForm = ({ formData, handleFormChange, handleAddExpense, CATEGORIES,
           <DatePicker
             selected={formData.date}
             onChange={(date) => handleFormChange('date', date)}
-            dateFormat="yyyy-MM-dd"
+            dateFormat="dd-MM-yyyy"
             className="border p-2 rounded w-full"
           />
 

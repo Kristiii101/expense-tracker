@@ -54,14 +54,23 @@ const ExpenseModal = ({ date, expenses, onClose }) => {
   }, 0);
 
   const formatDate = (dateString) => {
+    let date;
+    
     if (dateString?.seconds) {
-      return new Date(dateString.seconds * 1000).toLocaleDateString();
+      date = new Date(dateString.seconds * 1000);
     } else if (typeof dateString === 'string') {
-      return new Date(dateString).toLocaleDateString();
+      date = new Date(dateString);
     } else {
-      return new Date().toLocaleDateString();
+      date = new Date();
     }
+  
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+  
+    return `${day}/${month}/${year}`;
   };
+  
 
   return (
     <div className="modal-overlay" onClick={onClose}>

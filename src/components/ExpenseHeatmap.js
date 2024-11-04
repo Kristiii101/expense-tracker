@@ -9,11 +9,11 @@ import { useFirebaseOperations } from '../hooks/useFirebaseOperations';
 import '../styles/ExpenseHeatmap.css';
 
 const BUDGET_PERCENTAGES = {
-  LOW: 0.02,        // 2%
-  MEDIUM: 0.05,     // 5%
-  HIGH: 0.10,       // 10%
-  CRITICAL: 0.20,   // 20%
-  OVERTHETOP: 0.30  // 30%
+  LOW: 0.02,
+  MEDIUM: 0.05,
+  HIGH: 0.10,
+  CRITICAL: 0.20,
+  OVERTHETOP: 0.30
 };
 
 const ExpenseHeatmap = ({ expenses }) => {
@@ -26,12 +26,13 @@ const ExpenseHeatmap = ({ expenses }) => {
   const { preferredCurrency } = useCurrency();
   const { fetchTotalBudget } = useFirebaseOperations();
 
-  const getBudgetThresholds = (budget) => ({
-    LOW: budget * BUDGET_PERCENTAGES.LOW,
-    MEDIUM: budget * BUDGET_PERCENTAGES.MEDIUM,
-    HIGH: budget * BUDGET_PERCENTAGES.HIGH,
-    CRITICAL: budget * BUDGET_PERCENTAGES.CRITICAL,
-    OVERTHETOP: budget * BUDGET_PERCENTAGES.OVERTHETOP
+  // Calculate daily budget threshold
+  const getDailyBudgetThresholds = (budget) => ({
+    LOW: (budget / 10) * BUDGET_PERCENTAGES.LOW,
+    MEDIUM: (budget / 10) * BUDGET_PERCENTAGES.MEDIUM,
+    HIGH: (budget / 10) * BUDGET_PERCENTAGES.HIGH,
+    CRITICAL: (budget / 10) * BUDGET_PERCENTAGES.CRITICAL,
+    OVERTHETOP: (budget / 10) * BUDGET_PERCENTAGES.OVERTHETOP
   });
 
   useEffect(() => {
@@ -41,10 +42,7 @@ const ExpenseHeatmap = ({ expenses }) => {
       setBudgetCurrency(data.currency);
       
       const currentRates = await CurrencyConverter.getExchangeRates(preferredCurrency);
-      setRates(prevRates => ({
-        ...prevRates,
-        [preferredCurrency]: currentRates
-      }));
+      setRates(currentRates);
     };
     
     loadRatesAndBudget();
@@ -53,15 +51,13 @@ const ExpenseHeatmap = ({ expenses }) => {
   const displayAmount = (expense) => {
     if (!expense?.originalCurrency) return 0;
     if (expense.originalCurrency === preferredCurrency) return parseFloat(expense.originalAmount);
-    if (rates[expense.originalCurrency]) {
-      return parseFloat(CurrencyConverter.convertCurrency(
-        expense.originalAmount,
-        expense.originalCurrency,
-        preferredCurrency,
-        rates[expense.originalCurrency]
-      ));
-    }
-    return 0;
+    
+    return parseFloat(CurrencyConverter.convertCurrency(
+      expense.originalAmount,
+      expense.originalCurrency,
+      preferredCurrency,
+      rates
+    )) || 0;
   };
 
   const heatmapData = expenses.reduce((acc, expense) => {
@@ -90,7 +86,24 @@ const ExpenseHeatmap = ({ expenses }) => {
     setSelectedYear(prev => prev + increment);
   };
 
-  const thresholds = getBudgetThresholds(totalBudget);
+  const thresholds = getDailyBudgetThresholds(totalBudget);
+
+  const getColorScale = (amount) => {
+    if (!amount) return 'color-empty';
+    
+    const amountInBudgetCurrency = CurrencyConverter.convertCurrency(
+      amount,
+      preferredCurrency,
+      budgetCurrency,
+      rates
+    );
+
+    if (amountInBudgetCurrency >= thresholds.OVERTHETOP) return 'color-scale-4';
+    if (amountInBudgetCurrency >= thresholds.CRITICAL) return 'color-scale-3';
+    if (amountInBudgetCurrency >= thresholds.HIGH) return 'color-scale-2';
+    if (amountInBudgetCurrency >= thresholds.MEDIUM) return 'color-scale-1';
+    return 'color-scale-0';
+  };
 
   return (
     <div className="heatmap-container">
@@ -107,22 +120,7 @@ const ExpenseHeatmap = ({ expenses }) => {
         startDate={new Date(selectedYear, 0, 1)}
         endDate={new Date(selectedYear, 11, 31)}
         values={values}
-        classForValue={(value) => {
-          if (!value) return 'color-empty';
-          
-          const amountInBudgetCurrency = CurrencyConverter.convertCurrency(
-            value.count,
-            preferredCurrency,
-            budgetCurrency,
-            rates[preferredCurrency]
-          );
-
-          if (amountInBudgetCurrency > thresholds.OVERTHETOP) return 'color-scale-4';
-          if (amountInBudgetCurrency > thresholds.CRITICAL) return 'color-scale-3';
-          if (amountInBudgetCurrency > thresholds.HIGH) return 'color-scale-2';
-          if (amountInBudgetCurrency > thresholds.LOW) return 'color-scale-1';
-          return 'color-scale-0';
-        }}
+        classForValue={(value) => value ? getColorScale(value.count) : 'color-empty'}
         tooltipDataAttrs={value => ({
           'data-tip': value?.count 
             ? `${value.expenses.length} expenses totaling ${value.count.toFixed(2)} ${preferredCurrency}`

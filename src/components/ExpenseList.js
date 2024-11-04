@@ -62,16 +62,22 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
   }, [expenses, rates, displayAmount]);
 
   const formatDate = (expenseDate) => {
+    let date;
+    
     if (expenseDate instanceof Date) {
-      return expenseDate.toLocaleDateString();
+      date = expenseDate;
+    } else if (expenseDate?.seconds) {
+      date = new Date(expenseDate.seconds * 1000);
+    } else {
+      date = new Date();
     }
-    
-    // Extract from Firestore timestamp format
-    if (expenseDate?.seconds) {
-      return new Date(expenseDate.seconds * 1000).toLocaleDateString();
-    }
-    
-    return new Date().toLocaleDateString();
+  
+    // Format as dd/mm/yyyy
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+  
+    return `${day}/${month}/${year}`;
   };
 
   const filterExpenses = (expenses) => {
@@ -119,7 +125,7 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
         <DatePicker
           selected={filters.date}
           onChange={(date) => setFilters(prev => ({ ...prev, date }))}
-          dateFormat="yyyy-MM-dd"
+          dateFormat="dd-MM-yyyy"
           placeholderText="Filter by date"
           className="border p-2 rounded w-full"
         />

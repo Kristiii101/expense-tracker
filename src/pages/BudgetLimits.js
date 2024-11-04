@@ -47,21 +47,30 @@ const BudgetLimits = () => {
   };
 
   const saveBudgets = async () => {
-    const finalBudgets = {};
-    Object.entries(tempBudgets).forEach(([category, value]) => {
-      if (value) {
-        finalBudgets[category] = parseFloat(value);
-      }
-    });
-
-    await setDoc(doc(db, 'budgets', 'limits'), {
-      ...finalBudgets,
+    // Get existing budgets from Firestore
+    const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
+    const existingBudgets = budgetDoc.exists() ? budgetDoc.data() : {};
+  
+    // Create an object with only the changed budgets
+    const finalBudgets = {
+      ...existingBudgets,
+      ...Object.entries(tempBudgets).reduce((acc, [category, value]) => {
+        if (value) {
+          acc[category] = parseFloat(value);
+        }
+        return acc;
+      }, {}),
       currency: preferredCurrency
-    });
-
+    };
+  
+    // Save to Firestore
+    await setDoc(doc(db, 'budgets', 'limits'), finalBudgets);
+  
+    // Update local state
     setBudgets(finalBudgets);
     setTempBudgets({});
   };
+  
 
   return (
     <div className="budget-limits-container">
@@ -93,10 +102,10 @@ const BudgetLimits = () => {
                 type="number"
                 value={tempBudgets[category] || ''}
                 onChange={(e) => handleBudgetChange(category, e.target.value)}
-                placeholder={`Current: ${budgets[category]?.toFixed(2) || '0.00'}`}
+                placeholder={'New limit'}
                 className="budget-input"
               />
-              <span>{preferredCurrency}</span>
+              <span>{`Current: ${budgets[category]?.toFixed(2) || '0.00'}`}{preferredCurrency}</span>
             </div>
           </div>
         ))}

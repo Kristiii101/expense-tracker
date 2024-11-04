@@ -39,9 +39,10 @@
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 1px solid #ddd;
+    border: 1px solid #999;
     border-radius: 4px;
   }
+  
   
 .react-calendar-heatmap .color-scale-0,
 .legend-item.color-scale-0 { fill: #3ccc1f;; background-color: #3ccc1f; }
