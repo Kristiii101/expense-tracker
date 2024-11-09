@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { CATEGORY_COLORS } from '../config/constants';
 import { useCurrency } from '../context/CurrencyContext';
 import { CurrencyConverter } from '../utils/CurrencyConvertor';
-import {
+import { getCategoryColor } from '../utils/CategoryColors';
+import { 
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
@@ -13,6 +13,8 @@ import {
   Title,
   Tooltip,
   Legend,
+  ArcElement,
+  PieController
 } from 'chart.js';
 
 ChartJS.register(
@@ -21,10 +23,12 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ArcElement,
+  PieController
 );
 
-const ExpenseCharts = ({ expenses }) => {
+const ExpenseCharts = ({ expenses, showExpenses = true, showBudget = true }) => {
   const [budgetLimits, setBudgetLimits] = useState({});
   const [rates, setRates] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -34,7 +38,6 @@ const ExpenseCharts = ({ expenses }) => {
     if (!expense.originalCurrency || !rates?.[expense.originalCurrency]) {
       return expense.amount;
     }
-
     return CurrencyConverter.convertCurrency(
       expense.originalAmount || expense.amount,
       expense.originalCurrency,
@@ -43,7 +46,24 @@ const ExpenseCharts = ({ expenses }) => {
     );
   };
 
-  // Add this new effect to fetch categories
+  const expensesByCategory = categories.reduce((acc, category) => {
+    acc[category] = expenses
+      .filter(expense => expense.category === category)
+      .reduce((sum, expense) => sum + convertAmount(expense), 0);
+    return acc;
+  }, {});
+
+  const sortedCategories = Object.entries(expensesByCategory)
+  .sort(([, a], [, b]) => b - a)
+  .reduce((acc, [category, amount]) => {
+    acc[category] = amount;
+    return acc;
+  }, {});
+
+  const categoryLabels = Object.keys(sortedCategories);
+  const amounts = Object.values(sortedCategories);
+  const colors = categoryLabels.map(category => getCategoryColor(category));
+
   useEffect(() => {
     const fetchCategories = async () => {
       const categoriesRef = doc(db, 'settings', 'categories');
@@ -54,6 +74,45 @@ const ExpenseCharts = ({ expenses }) => {
     };
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const fetchBudgetLimits = async () => {
+      const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
+      if (budgetDoc.exists()) {
+        const budgetData = budgetDoc.data();
+        const rates = await CurrencyConverter.getExchangeRates(budgetData.currency || preferredCurrency);
+        
+        const convertedLimits = {};
+        Object.entries(budgetData).forEach(([category, amount]) => {
+          if (category !== 'currency') {
+            convertedLimits[category] = CurrencyConverter.convertCurrency(
+              amount,
+              budgetData.currency || preferredCurrency,
+              preferredCurrency,
+              rates
+            );
+          }
+        });
+        setBudgetLimits(convertedLimits);
+      }
+    };
+    fetchBudgetLimits();
+  }, [preferredCurrency]);
+
+  const budgetRemainingData = {
+    labels: categoryLabels,
+    datasets: [{
+      label: `Remaining Budget (${preferredCurrency})`,
+      data: categoryLabels.map(category => {
+        const spent = expensesByCategory[category] || 0;
+        const budget = budgetLimits[category] || 0;
+        return Math.max(0, budget - spent);
+      }),
+      backgroundColor: colors.map(color => color + '90'),
+      borderColor: colors,
+      borderWidth: 1,
+    }],
+  };
 
   useEffect(() => {
     const loadRates = async () => {
@@ -73,72 +132,8 @@ const ExpenseCharts = ({ expenses }) => {
     loadRates();
   }, [expenses, preferredCurrency]);
 
-  useEffect(() => {
-    const fetchBudgetLimits = async () => {
-      const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
-      if (budgetDoc.exists()) {
-        const data = budgetDoc.data();
-        const rates = await CurrencyConverter.getExchangeRates(data.currency || preferredCurrency);
-        
-        // Convert budget limits to preferred currency
-        const convertedLimits = {};
-        Object.entries(data).forEach(([category, amount]) => {
-          if (category !== 'currency') {
-            convertedLimits[category] = CurrencyConverter.convertCurrency(
-              amount,
-              data.currency || preferredCurrency,
-              preferredCurrency,
-              rates
-            );
-          }
-        });
-        
-        setBudgetLimits(convertedLimits);
-      }
-    };
-    fetchBudgetLimits();
-  }, [preferredCurrency]);
-
-  const expensesByCategory = categories.reduce((acc, category) => {
-    acc[category] = expenses
-      .filter(expense => expense.category === category)
-      .reduce((sum, expense) => sum + convertAmount(expense), 0);
-    return acc;
-  }, {});
-
-  // Update color mapping to handle dynamic categories
-  const getColorForCategory = (category) => {
-    return CATEGORY_COLORS[category] || '#' + Math.floor(Math.random()*16777215).toString(16);
-  };
-
-  const sortedCategories = Object.entries(expensesByCategory)
-    .sort(([, a], [, b]) => b - a)
-    .reduce((acc, [category, amount]) => {
-      acc[category] = amount;
-      return acc;
-    }, {});
-
-  const categoryLabels = Object.keys(sortedCategories);
-  const amounts = Object.values(sortedCategories);
-  const colors = categoryLabels.map(category => getColorForCategory(category));
-
-  const budgetRemainingData = {
-    labels: categories,
-    datasets: [{
-      label: `Remaining Budget (${preferredCurrency})`,
-      data: categories.map(category => {
-        const spent = expensesByCategory[category] || 0;
-        const budget = budgetLimits[category] || 0;
-        return Math.max(0, budget - spent);
-      }),
-      backgroundColor: colors.map(color => color + '90'),
-      borderColor: colors,
-      borderWidth: 1,
-    }],
-  };
-
   const expensesChartData = {
-    labels: categories,
+    labels: categoryLabels,
     datasets: [{
       label: `Expenses by Category (${preferredCurrency})`,
       data: amounts,
@@ -163,7 +158,7 @@ const ExpenseCharts = ({ expenses }) => {
     onClick: (event, elements) => {
       if (elements.length > 0) {
         const index = elements[0].index;
-        const selectedCategory = categories[index];
+        const selectedCategory = categoryLabels[index];
         window.location.href = `/category/${selectedCategory}`;
       }
     }
@@ -171,12 +166,18 @@ const ExpenseCharts = ({ expenses }) => {
 
   return (
     <div className="charts-container">
-      <div className="chart-wrapper">
-        <Bar data={expensesChartData} options={options} />
-      </div>
-      <div className="chart-wrapper">
-        <Bar data={budgetRemainingData} options={options} />
-      </div>
+      {showExpenses && (
+        <div className="chart-wrapper">
+          <h3>Expenses by Category</h3>
+          <Bar data={expensesChartData} options={options} />
+        </div>
+      )}
+      {showBudget && (
+        <div className="chart-wrapper">
+          <h3>Remaining Budget</h3>
+          <Bar data={budgetRemainingData} options={options} />
+        </div>
+      )}
     </div>
   );
 };

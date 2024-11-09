@@ -1,0 +1,213 @@
+body {
+    background-color: #27395f;  /* Dark blue background */
+  }
+
+:root {
+    --primary: #2563eb;
+    --primary-light: #60a5fa;
+    --success: #059669;
+    --danger: #ff0000;
+    --background: #384a6f;
+    --card: #aab4ee;
+    --text: #1e293b;
+  }
+  
+  .recurring-expenses-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    background-color: var(--background);
+    min-height: 100vh;
+  }
+  
+  .recurring-expenses-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    background: var(--card);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  .recurring-expenses-form {
+    background: var(--card);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    transition: transform 0.2s;
+  }
+
+  .recurring-expenses-form:hover {
+    box-shadow: 0 8px 12px -1px rgba(37, 99, 235, 0.2);
+  }
+  
+  
+  .recurring-expenses-form input,
+  .recurring-expenses-form select {
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+  
+  .recurring-expenses-form input:focus,
+  .recurring-expenses-form select:focus {
+    border-color: var(--primary-light);
+    outline: none;
+  }
+  
+  .recurring-expense-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .recurring-expense-controls select {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    background-color: var(--card);
+    color: var(--text);
+  }
+  
+  .recurring-expenses-list {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  
+  .recurring-expense-item {
+    display: flex;
+    align-items: center;
+    padding: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s;
+    box-shadow: 0 8px 12px -1px rgba(37, 99, 235, 0.2);
+  }
+  
+  .recurring-expense-details {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1rem;
+    margin: 0 1rem;
+    color: var(--text);
+  }
+  
+  .recurring-expense-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+  
+  .recurring-expenses-buttons {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .recurring-expenses-submit {
+    background: var(--primary);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .recurring-expenses-cancel {
+    background: #64748b;
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .back-button {
+    background: var(--primary);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 1rem;
+  }
+
+  .recurring-expenses-navigation button {
+    background: var(--primary);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .recurring-expenses-navigation span {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  
+  .recurring-expense-item:hover {
+    background-color: #b1cfbf;
+  }
+  
+  .recurring-expense-item input[type="checkbox"] {
+    margin-right: 1rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+  }
+  
+  .recurring-expense-actions button {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    color: white;
+  }
+  
+  .recurring-expense-actions button:first-child {
+    background: var(--primary);
+  }
+  
+  .recurring-expense-actions button:last-child {
+    background: var(--danger);
+  }
+  
+  .recurring-expense-controls button {
+    background: var(--danger);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .recurring-expenses-navigation button:hover,
+  .recurring-expenses-submit:hover,
+  .recurring-expense-actions button:hover,
+  .back-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  @media (max-width: 768px) {
+    .recurring-expenses-form {
+      grid-template-columns: 1fr;
+    }
+    
+    .recurring-expense-details {
+      grid-template-columns: 1fr;
+    }
+  }
+  

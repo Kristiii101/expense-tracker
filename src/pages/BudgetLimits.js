@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { CATEGORIES } from '../config/constants';
 import { useNavigate } from 'react-router-dom';
 import { CURRENCIES } from '../config/currencies';
 import { useCurrency } from '../context/CurrencyContext';
 import { CurrencyConverter } from '../utils/CurrencyConvertor';
-
 const BudgetLimits = () => {
   const [budgets, setBudgets] = useState({});
   const [tempBudgets, setTempBudgets] = useState({});
+  const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
   const { preferredCurrency, updatePreferredCurrency } = useCurrency();
 
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const categoriesRef = doc(db, 'settings', 'categories');
+      const categoriesDoc = await getDoc(categoriesRef);
+      if (categoriesDoc.exists()) {
+        setCategories(categoriesDoc.data().list);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch budgets
   useEffect(() => {
     const fetchBudgets = async () => {
       const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
@@ -47,11 +59,9 @@ const BudgetLimits = () => {
   };
 
   const saveBudgets = async () => {
-    // Get existing budgets from Firestore
     const budgetDoc = await getDoc(doc(db, 'budgets', 'limits'));
     const existingBudgets = budgetDoc.exists() ? budgetDoc.data() : {};
   
-    // Create an object with only the changed budgets
     const finalBudgets = {
       ...existingBudgets,
       ...Object.entries(tempBudgets).reduce((acc, [category, value]) => {
@@ -63,14 +73,10 @@ const BudgetLimits = () => {
       currency: preferredCurrency
     };
   
-    // Save to Firestore
     await setDoc(doc(db, 'budgets', 'limits'), finalBudgets);
-  
-    // Update local state
     setBudgets(finalBudgets);
     setTempBudgets({});
   };
-  
 
   return (
     <div className="budget-limits-container">
@@ -94,7 +100,7 @@ const BudgetLimits = () => {
       </button>
 
       <div className="budget-inputs">
-        {CATEGORIES.map(category => (
+        {categories.map(category => (
           <div key={category} className="budget-input-group">
             <label>{category}</label>
             <div className="input-with-currency">

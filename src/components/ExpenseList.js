@@ -170,8 +170,7 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
               <span>
                 {expense.category} - {displayAmount(expense)} {preferredCurrency} 
                 {expense.originalCurrency !== preferredCurrency && 
-                  ` (${expense.originalAmount} ${expense.originalCurrency})`} 
-                - {expense.description} - {formatDate(expense.date)}
+                  ` (${expense.originalAmount} ${expense.originalCurrency})`} - {expense.description} - {formatDate(expense.date)}
               </span>
               <button className='delete-button' onClick={() => handleDeleteExpense(expense)}>
                 Delete
@@ -183,7 +182,7 @@ const ExpenseList = ({ expenses, filters, setFilters, handleDeleteExpense, fetch
         <p className="text-center text-gray-500">No expenses found.</p>
       )}
 
-      <ExpenseCharts expenses={filteredExpenses} />
+      <ExpenseCharts expenses={filteredExpenses} showPie = {false} />
 
     </div>
   );

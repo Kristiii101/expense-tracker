@@ -1,165 +1,293 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, deleteDoc, doc, getDocs, Timestamp } from 'firebase/firestore';
-import { CATEGORIES } from '../config/constants';
-import ExpenseCharts from '../components/ExpenseCharts';
+import { collection, addDoc, deleteDoc, doc, getDocs, updateDoc, Timestamp } from 'firebase/firestore';
+import DatePicker from 'react-datepicker';
 import { useNavigate } from 'react-router-dom';
-import '../styles/App.css';
+import RecurringCharts from '../components/RecurringCharts';
+import '../styles/RecurringExpenses.css';
 
 const RecurringExpenses = () => {
   const navigate = useNavigate();
   const [recurringExpenses, setRecurringExpenses] = useState([]);
+  const [selectedExpenses, setSelectedExpenses] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [sortBy, setSortBy] = useState('date');
+  const [filterBy, setFilterBy] = useState('all');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
     category: '',
-    frequency: 'Monthly'
+    frequency: 'Monthly',
+    startDate: new Date(),
+    endDate: null,
+    paymentMethod: '',
+    status: 'Completed',
+    notifications: {
+      enabled: false,
+      reminderDays: 3
+    }
   });
 
   const frequencies = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
+  const statuses = ['Completed', 'Active', 'Paused'];
+  const paymentMethods = ['Credit Card', 'Bank Transfer', 'Cash', 'Other'];
 
-  const fetchRecurringExpenses = async () => {
-    const recurringExpensesRef = collection(db, 'recurringExpenses');
-    const snapshot = await getDocs(recurringExpensesRef);
-    const expenses = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    setRecurringExpenses(expenses);
+  const changeMonth = (direction) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(selectedDate.getMonth() + direction);
+    setSelectedDate(newDate);
   };
 
-  const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddRecurringExpense = async () => {
-    try {
-      if (!formData.amount || isNaN(formData.amount)) {
-        alert('Please enter a valid amount');
-        return;
-      }
-      if (!formData.description) {
-        alert('Please enter a description');
-        return;
-      }
-      if (!formData.category) {
-        alert('Please select a category');
-        return;
-      }
-
-      const recurringExpenseRef = collection(db, 'recurringExpenses');
-      const newRecurringExpense = {
-        amount: parseFloat(formData.amount),
-        description: formData.description,
-        category: formData.category,
-        frequency: formData.frequency,
-        created: Timestamp.fromDate(new Date())
-      };
-
-      await addDoc(recurringExpenseRef, newRecurringExpense);
-      setFormData({
-        amount: '',
-        description: '',
-        category: '',
-        frequency: 'Daily'
+  // Fetch expenses
+  const fetchRecurringExpenses = useCallback(async () => {
+    const startOfMonth = new Date(selectedDate);
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+  
+    const endOfMonth = new Date(selectedDate);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+  
+    const snapshot = await getDocs(collection(db, 'recurringExpenses'));
+    const expenses = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter(expense => {
+        const expenseDate = new Date(expense.created.seconds * 1000);
+        return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
       });
-      fetchRecurringExpenses();
-    } catch (error) {
-      console.error('Error adding recurring expense:', error);
-      alert('Failed to add recurring expense. Please try again.');
-    }
-  };
-
-  const handleDeleteRecurringExpense = async (id) => {
-    try {
-      const expenseRef = doc(db, 'recurringExpenses', id);
-      await deleteDoc(expenseRef);
-      fetchRecurringExpenses();
-    } catch (error) {
-      console.error('Error deleting recurring expense:', error);
-      alert('Failed to delete recurring expense. Please try again.');
-    }
-  };
-
+  
+    setRecurringExpenses(expenses);
+  }, [selectedDate]);
+  
   useEffect(() => {
     fetchRecurringExpenses();
-  }, []);
+  }, [fetchRecurringExpenses]);
+
+  // Handle form changes
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Add or Update expense
+  const handleSubmit = async () => {
+    if (!formData.amount || !formData.description) {
+      alert('Please enter both amount and description');
+      return;
+    }
+
+    try {
+      const expenseData = {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        created: Timestamp.fromDate(new Date()),
+        startDate: Timestamp.fromDate(formData.startDate),
+        endDate: formData.endDate ? Timestamp.fromDate(formData.endDate) : null
+      };
+
+      if (isEditMode) {
+        await updateDoc(doc(db, 'recurringExpenses', formData.id), expenseData);
+      } else {
+        await addDoc(collection(db, 'recurringExpenses'), expenseData);
+      }
+
+      resetForm();
+      fetchRecurringExpenses();
+    } catch (error) {
+      console.error('Error saving expense:', error);
+    }
+  };
+
+  // Edit expense
+  const handleEdit = (expense) => {
+    setFormData({
+      ...expense,
+      startDate: expense.startDate ? new Date(expense.startDate.seconds * 1000) : new Date(),
+      endDate: expense.endDate ? new Date(expense.endDate.seconds * 1000) : null,
+      created: Timestamp.fromDate(new Date())
+    });
+    setIsEditMode(true);
+  };
+
+  // Delete expense(s)
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, 'recurringExpenses', id));
+    fetchRecurringExpenses();
+  };
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedExpenses) {
+      await handleDelete(id);
+    }
+    setSelectedExpenses([]);
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      amount: '',
+      description: '',
+      category: '',
+      frequency: 'Monthly',
+      startDate: new Date(),
+      endDate: null,
+      paymentMethod: '',
+      status: 'Completed',
+      notifications: {
+        enabled: false,
+        reminderDays: 3
+      }
+    });
+    setIsEditMode(false);
+  };
+
+  // Sort and filter expenses
+  const getSortedAndFilteredExpenses = () => {
+    let filtered = [...recurringExpenses];
+    
+    if (filterBy !== 'all') {
+      filtered = filtered.filter(expense => expense.status === filterBy);
+    }
+
+    return filtered.sort((a, b) => {
+      if (sortBy === 'amount') return b.amount - a.amount;
+      if (sortBy === 'date') return b.created - a.created;
+      return 0;
+    });
+  };
 
   return (
     <div className="recurring-expenses-container">
-      <h2>Recurring Expenses</h2>
       <button onClick={() => navigate('/')} className="back-button">
-        Back to Main
+        Back to Dashboard
       </button>
       
-      <div className="recurring-expense-form">
+      <div className="recurring-expenses-navigation">
+        <button onClick={() => changeMonth(-1)}>Previous Month</button>
+        <span>{selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+        <button onClick={() => changeMonth(1)}>Next Month</button>
+      </div>
+  
+      <div className="recurring-expenses-form">
         <input
           type="number"
-          placeholder="Amount"
           value={formData.amount}
           onChange={(e) => handleFormChange('amount', e.target.value)}
-          className="border p-2 rounded"
+          placeholder="Amount *"
+          required
         />
         <input
           type="text"
-          placeholder="Description"
           value={formData.description}
           onChange={(e) => handleFormChange('description', e.target.value)}
-          className="border p-2 rounded"
+          placeholder="Enter description *"
+          required
         />
-        <select
-          value={formData.category}
-          onChange={(e) => handleFormChange('category', e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Select Category</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
+        <DatePicker
+          selected={formData.startDate}
+          onChange={(date) => handleFormChange('startDate', date)}
+          placeholderText="Start Date"
+        />
         <select
           value={formData.frequency}
           onChange={(e) => handleFormChange('frequency', e.target.value)}
-          className="border p-2 rounded"
         >
-          {frequencies.map((freq) => (
-            <option key={freq} value={freq}>{freq.charAt(0).toUpperCase() + freq.slice(1)}</option>
+          {frequencies.map(freq => (
+            <option key={freq} value={freq}>{freq}</option>
           ))}
         </select>
-        <button
-          onClick={handleAddRecurringExpense}
-          className="add-recurring-expense-button"
+        <select
+          value={formData.paymentMethod}
+          onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
         >
-          Add Recurring Expense
-        </button>
+          {paymentMethods.map(method => (
+            <option key={method} value={method}>{method}</option>
+          ))}
+        </select>
+        <select
+          value={formData.status}
+          onChange={(e) => handleFormChange('status', e.target.value)}
+        >
+          {statuses.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        
+        <div className="recurring-expenses-buttons">
+          <button 
+            className="recurring-expenses-submit"
+            onClick={handleSubmit}
+          >
+            {isEditMode ? 'Update Expense' : 'Add Expense'}
+          </button>
+          {isEditMode && (
+            <button 
+              className="recurring-expenses-cancel"
+              onClick={resetForm}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
-
+  
+      <div className="recurring-expense-controls">
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="date">Sort by Date</option>
+          <option value="amount">Sort by Amount</option>
+        </select>
+        <select value={filterBy} onChange={(e) => setFilterBy(e.target.value)}>
+          <option value="all">All Status</option>
+          {statuses.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        {selectedExpenses.length > 0 && (
+          <button onClick={handleBulkDelete}>Delete Selected</button>
+        )}
+      </div>
+  
       <div className="recurring-expenses-list">
-        {recurringExpenses.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
-            {recurringExpenses.map((expense) => (
-              <li key={expense.id} className="py-4 flex justify-between items-center">
-                <span>
-                  {expense.category} - ${expense.amount.toFixed(2)} - {expense.description} ({expense.frequency})
-                </span>
-                <button
-                  onClick={() => handleDeleteRecurringExpense(expense.id)}
-                  className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded"
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No recurring expenses found.</p>
-        )}
-        {recurringExpenses.length > 0 && (
-          <ExpenseCharts expenses={recurringExpenses} />
-        )}
+        {getSortedAndFilteredExpenses().map(expense => (
+          <div key={expense.id} className="recurring-expense-item">
+            <input
+              type="checkbox"
+              checked={selectedExpenses.includes(expense.id)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedExpenses([...selectedExpenses, expense.id]);
+                } else {
+                  setSelectedExpenses(selectedExpenses.filter(id => id !== expense.id));
+                }
+              }}
+            />
+            <div className="recurring-expense-details">
+              <span>{expense.description}</span>
+              <span>{expense.amount}</span>
+              <span>{expense.status}</span>
+            </div>
+            <div className="recurring-expense-actions">
+              <button onClick={() => handleEdit(expense)}>Edit</button>
+              <button onClick={() => handleDelete(expense.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
       </div>
+  
+      {recurringExpenses.length > 0 && (
+        <RecurringCharts expenses={recurringExpenses} />
+      )}
     </div>
   );
+  
 };
 
 export default RecurringExpenses;
